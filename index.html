@@ -1157,10 +1157,6 @@
         async function loadAttendanceTable() {
             if (attendanceTableUnsubscribe) attendanceTableUnsubscribe();
 
-            const students = new Map();
-            const studentSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
-            studentSnapshot.forEach(doc => students.set(doc.data().studentId, doc.data().name));
-
             const tableBody = document.getElementById('live-attendance-table-body');
             const noRecordsMsg = document.getElementById('no-attendance-records-message');
             
@@ -1170,17 +1166,37 @@
                 where("teacherId", "==", currentUser.uid)
             );
 
-            attendanceTableUnsubscribe = onSnapshot(q, (snapshot) => {
+            attendanceTableUnsubscribe = onSnapshot(q, async (snapshot) => {
                 tableBody.innerHTML = ''; 
                 noRecordsMsg.classList.toggle('hidden', !snapshot.empty);
 
                 if (snapshot.empty) return;
                 
+                // Load fresh student data for each update to ensure consistency
+                const students = new Map();
+                try {
+                    const studentSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+                    studentSnapshot.forEach(doc => {
+                        const studentData = doc.data();
+                        students.set(studentData.studentId, studentData.name);
+                    });
+                } catch (error) {
+                    console.error("Error loading students for attendance table:", error);
+                }
+                
                 const records = snapshot.docs.map(doc => doc.data()).filter(r => r.time_in);
                 records.sort((a,b) => b.time_in.toMillis() - a.time_in.toMillis());
 
                 records.forEach(record => {
-                    const studentName = students.get(record.studentId) || 'Unknown Student';
+                    // Enhanced student name lookup with better error handling
+                    let studentName = students.get(record.studentId);
+                    
+                    // If student not found in current class, it might be a data consistency issue
+                    if (!studentName) {
+                        console.warn(`Student ID ${record.studentId} not found in class roster. This might indicate a data sync issue.`);
+                        studentName = `Unknown Student (ID: ${record.studentId})`;
+                    }
+                    
                     const timeIn = record.time_in ? record.time_in.toDate().toLocaleTimeString() : 'N/A';
                     const timeOut = record.time_out ? record.time_out.toDate().toLocaleTimeString() : 'N/A';
                     
