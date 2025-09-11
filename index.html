@@ -739,7 +739,8 @@
                 const presentStudentsSet = new Set();
                 attendanceSnapshot.forEach(doc => {
                     const data = doc.data();
-                    if (data.time_in && !data.time_out) {
+                    // Count students who have time_in (regardless of time_out status)
+                    if (data.time_in) {
                          presentStudentsSet.add(data.studentId);
                     }
                 });
@@ -749,6 +750,8 @@
                 const attendanceCountEl = document.getElementById(`attendance-count-${eventId}`);
                 if (classCountEl) classCountEl.textContent = classCount;
                 if (attendanceCountEl) attendanceCountEl.textContent = `${presentStudents} / ${totalStudents}`;
+
+                console.log(`Event ${eventId} stats: ${presentStudents} present out of ${totalStudents} total students`);
 
             } catch (error) {
                 console.error(`Failed to get stats for event ${eventId}:`, error);
