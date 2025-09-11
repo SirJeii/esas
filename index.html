@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* A clean light gray from the new UI */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .modal-backdrop {
+            background-color: rgba(0,0,0,0.5);
+            transition: opacity 0.3s ease-in-out;
+        }
+        .modal-content {
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            transform: translateY(20px) scale(0.98);
+            opacity: 0;
+        }
+        .modal-open .modal-content {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+
+        /* Print styles for QR codes */
+        @media print {
+            body * { visibility: hidden; }
+            #qr-code-view, #qr-code-view * { visibility: visible; }
+            #qr-code-view { position: absolute; left: 0; top: 0; width: 100%; }
+            #qr-code-grid { display: grid; grid-template-columns: repeat(3, 1fr) !important; gap: 20px !important; page-break-inside: auto; }
+            .qr-card-item { page-break-inside: avoid; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="text-gray-800 bg-gray-100">
+
+    <!-- Main Application Container -->
+    <div id="app" class="min-h-screen">
+
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
+            <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
+        
+        <!-- Header -->
+        <header id="app-header" class="bg-white p-4 flex justify-between items-center hidden shadow-md sticky top-0 z-30">
+            <div class="flex items-center space-x-3">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <h1 class="text-2xl font-bold text-gray-800">Attendance Tracker</h1>
+            </div>
+            <div id="user-info" class="flex items-center space-x-4">
+                <span id="user-email" class="text-sm text-gray-600 hidden sm:block"></span>
+                <button id="logout-button" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-red-500 hover:bg-red-600 text-white focus:ring-red-500 text-sm">Logout</button>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <main id="main-content" class="p-4 md:p-8">
+            <!-- Login View -->
+            <div id="login-view" class="hidden">
+                <div class="max-w-md mx-auto mt-10 bg-white p-8 rounded-xl shadow-lg">
+                    <h2 id="auth-title" class="text-3xl font-bold text-center text-gray-800 mb-2">Teacher Login</h2>
+                    <p id="auth-subtitle" class="text-center text-gray-500 mb-8">Welcome back! Please sign in to continue.</p>
+                    
+                    <form id="login-form">
+                        <div class="mb-4">
+                            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                            <input type="email" id="email" required class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all" placeholder="you@example.com">
+                        </div>
+                        <div class="mb-6">
+                            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                            <input type="password" id="password" required class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all" placeholder="••••••••">
+                        </div>
+                        <button type="submit" id="auth-submit-btn" class="w-full font-bold py-3 font-semibold px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500">Login</button>
+                    </form>
+                    
+                    <form id="signup-form" class="hidden">
+                         <div class="mb-4">
+                            <label for="signup-email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                            <input type="email" id="signup-email" required class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all" placeholder="you@example.com">
+                        </div>
+                        <div class="mb-4">
+                            <label for="signup-password" class="block text-sm font-medium text-gray-700 mb-2">Password (min. 6 characters)</label>
+                            <input type="password" id="signup-password" required minlength="6" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all" placeholder="••••••••">
+                        </div>
+                        <div class="mb-6">
+                            <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                            <input type="password" id="confirm-password" required minlength="6" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all" placeholder="••••••••">
+                        </div>
+                        <button type="submit" class="w-full font-bold py-3 font-semibold px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white focus:ring-green-500">Create Account</button>
+                    </form>
+                    
+                    <div class="mt-6 text-center">
+                        <p class="text-sm text-gray-600">
+                            <span id="toggle-text">Don't have an account?</span>
+                            <button id="toggle-auth-mode" class="text-blue-600 hover:text-blue-800 font-semibold ml-1 transition">Sign up here</button>
+                        </p>
+                    </div>
+                    
+                    <p id="auth-error" class="text-red-500 text-center mt-4 text-sm font-medium"></p>
+                </div>
+            </div>
+
+            <!-- Dashboard View (Event List) -->
+            <div id="dashboard-view" class="hidden">
+                 <div id="dashboard-stats" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Stats will be injected here -->
+                </div>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-3xl font-bold text-gray-800">My Events</h2>
+                    <button id="open-create-event-modal" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-2 hidden sm:block"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Create Event
+                    </button>
+                </div>
+                <div id="event-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+                <div id="no-events-message" class="hidden text-center py-16 bg-white rounded-xl shadow-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-gray-400 mb-4"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"></path></svg>
+                    <p class="text-xl font-semibold text-gray-700">No events found.</p>
+                    <p class="text-gray-500 mt-2">Get started by creating your first event.</p>
+                </div>
+            </div>
+
+            <!-- Event Detail View (Class List) -->
+            <div id="event-detail-view" class="hidden">
+                <button id="back-to-dashboard-from-event-detail" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Back to Events
+                </button>
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <h2 id="event-detail-name" class="text-3xl font-bold"></h2>
+                            <p id="event-detail-date" class="text-lg text-gray-600 mt-1"></p>
+                        </div>
+                        <button id="open-create-class-modal" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white focus:ring-green-500 self-start md:self-center flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-2 hidden sm:block"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Create Class
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 class="text-2xl font-bold mb-4">Classes for this Event</h3>
+                    <div id="class-list-for-event" class="divide-y divide-gray-100"></div>
+                    <p id="no-classes-for-event-message" class="hidden text-center py-8 text-gray-500">No classes created for this event yet.</p>
+                </div>
+            </div>
+            
+            <!-- Student Management View -->
+            <div id="student-management-view" class="hidden">
+                <button id="back-to-event-detail-from-manage" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Back to Event Details
+                </button>
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
+                    <h2 id="student-management-class-name" class="text-3xl font-bold"></h2>
+                    <p id="student-management-event-name" class="text-lg text-gray-600 mt-1"></p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex flex-col md:flex-row gap-4 justify-between md:items-center mb-6 border-b border-gray-200 pb-6">
+                        <h3 class="text-2xl font-bold">Management</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="toggle-student-roster-btn" class="font-semibold py-2 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 text-sm flex items-center px-3">Show Student Roster</button>
+                            <button id="download-csv-template" class="font-semibold py-2 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 text-sm flex items-center px-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Template
+                            </button>
+                           <label for="csv-file-input" class="cursor-pointer font-semibold py-2 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white focus:ring-green-500 text-sm flex items-center px-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                Import CSV
+                            </label>
+                            <input type="file" id="csv-file-input" class="hidden" accept=".csv">
+                            <button id="generate-qr-codes" class="font-semibold py-2 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-purple-500 hover:bg-purple-600 text-white focus:ring-purple-500 text-sm flex items-center px-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                Gen. QR Codes
+                            </button>
+                            <button id="export-event-attendance" class="font-semibold py-2 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-red-500 hover:bg-red-600 text-white focus:ring-red-500 text-sm flex items-center px-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                                Export PDF Report
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="student-roster-container" class="hidden">
+                        <h3 class="text-xl font-bold mb-4 text-gray-700">Student Roster</h3>
+                        <div id="student-list" class="divide-y divide-gray-100"></div>
+                        <p id="no-students-message" class="hidden text-center py-8 text-gray-500">No students have been added to this class yet.</p>
+                    </div>
+
+                    <div id="attendance-table-container">
+                        <div class="mt-8 border-t border-gray-200 pt-6">
+                            <h3 class="text-xl font-bold mb-4 text-gray-700">Live Attendance Records</h3>
+                            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student ID</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time In</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Out</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="live-attendance-table-body" class="bg-white divide-y divide-gray-200">
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p id="no-attendance-records-message" class="hidden text-center py-8 text-gray-500">No attendance has been recorded for this class in this event yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- QR Code View -->
+            <div id="qr-code-view" class="hidden p-4 md:p-8">
+                <div class="no-print">
+                    <button id="back-to-student-management-from-qr" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        Back to Student Management
+                    </button>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <h2 class="text-3xl font-bold">Student QR Codes</h2>
+                        <div class="flex items-center gap-2">
+                            <button id="download-qr-zip" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white focus:ring-green-500 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                Download ZIP
+                            </button>
+                            <button onclick="window.print()" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                                Print
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="qr-code-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                </div>
+            </div>
+
+            <!-- Attendance View -->
+            <div id="attendance-view" class="hidden">
+                <button id="back-to-event-detail-from-scanner" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Back to Event Details
+                </button>
+                <div class="bg-white p-4 md:p-6 rounded-xl shadow-lg mb-6">
+                    <h2 id="attendance-view-title" class="text-2xl md:text-3xl font-bold text-center"></h2>
+                </div>
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- Left Column: Scanner -->
+                    <div class="lg:w-1/2 bg-white p-4 md:p-6 rounded-xl shadow-lg text-center flex flex-col">
+                        <h3 class="text-2xl font-bold mb-4">Scanner</h3>
+                        <div class="mb-4">
+                            <label for="scan-mode" class="block text-sm font-medium text-gray-700 mb-2">Scan Mode:</label>
+                            <select id="scan-mode" class="w-full max-w-xs mx-auto block px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                                <option value="auto" selected>Automatic (In/Out)</option>
+                                <option value="time_in">Force Time In</option>
+                                <option value="time_out">Force Time Out</option>
+                            </select>
+                        </div>
+                        <div id="qr-reader" class="w-full max-w-sm mx-auto border-4 border-dashed border-gray-300 rounded-lg overflow-hidden flex-grow min-h-[250px]"></div>
+                    </div>
+                    <!-- Right Column: Student List -->
+                    <div class="lg:w-1/2 bg-white p-4 md:p-6 rounded-xl shadow-lg">
+                        <h3 class="text-2xl font-bold mb-4">Student Status</h3>
+                        <div id="attendance-student-list" class="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+            
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="create-class-modal" class="fixed inset-0 z-40 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md modal-content">
+            <h3 class="text-2xl font-bold mb-6">Create New Class</h3>
+            <form id="create-class-form">
+                <div class="mb-4">
+                    <label for="class-name" class="block text-sm font-medium text-gray-700 mb-2">Class Name</label>
+                    <input type="text" id="class-name" placeholder="e.g., Session A" required class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all">
+                </div>
+                <div class="mb-6">
+                    <label for="class-section" class="block text-sm font-medium text-gray-700 mb-2">Details (Optional)</label>
+                    <input type="text" id="class-section" placeholder="e.g., Room 101" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all">
+                </div>
+                <div class="flex justify-end gap-4 mt-8">
+                    <button type="button" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 modal-cancel">Cancel</button>
+                    <button type="submit" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="create-event-modal" class="fixed inset-0 z-40 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md modal-content">
+            <h3 class="text-2xl font-bold mb-6">Create New Event</h3>
+            <form id="create-event-form">
+                <div class="mb-4">
+                    <label for="event-name" class="block text-sm font-medium text-gray-700 mb-2">Event Name</label>
+                    <input type="text" id="event-name" placeholder="e.g., Tech Conference Day 1" required class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all">
+                </div>
+                <div class="mb-6">
+                    <label for="event-date" class="block text-sm font-medium text-gray-700 mb-2">Event Date</label>
+                    <input type="date" id="event-date" required class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all">
+                </div>
+                <div class="flex justify-end gap-4 mt-8">
+                    <button type="button" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 modal-cancel">Cancel</button>
+                    <button type="submit" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500">Create Event</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="edit-event-modal" class="fixed inset-0 z-40 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md modal-content">
+            <h3 class="text-2xl font-bold mb-6">Edit Event</h3>
+            <form id="edit-event-form">
+                <input type="hidden" id="edit-event-id">
+                <div class="mb-4">
+                    <label for="edit-event-name" class="block text-sm font-medium text-gray-700 mb-2">Event Name</label>
+                    <input type="text" id="edit-event-name" required class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all">
+                </div>
+                <div class="mb-6">
+                    <label for="edit-event-date" class="block text-sm font-medium text-gray-700 mb-2">Event Date</label>
+                    <input type="date" id="edit-event-date" required class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all">
+                </div>
+                <div class="flex justify-end gap-4 mt-8">
+                    <button type="button" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 modal-cancel">Cancel</button>
+                    <button type="submit" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md modal-content">
+            <h3 id="confirm-title" class="text-2xl font-bold mb-4">Are you sure?</h3>
+            <p id="confirm-message" class="text-gray-600 mb-6"></p>
+            <div class="flex justify-end gap-4">
+                <button type="button" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 modal-cancel">Cancel</button>
+                <button id="confirm-delete-btn" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-red-500 hover:bg-red-600 text-white focus:ring-red-500">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 right-5 bg-gray-900 text-white py-3 px-6 rounded-lg shadow-lg opacity-0 transition-all duration-300 z-50 transform translate-y-4">
+        <p id="toast-message" class="font-medium"></p>
+    </div>
+
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, collection, query, where, onSnapshot, getDocs, updateDoc, serverTimestamp, deleteDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- App Initialization ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'attendance-tracker-app';
+        let firebaseConfig;
+
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+             // Fallback for local development
+            firebaseConfig = {
+                apiKey: "AIzaSyAf9Uaan2tdXwpIaGVD43dRkUWYEh-biSc",
+                authDomain: "attendancetrackerapp-c7030.firebaseapp.com",
+                projectId: "attendancetrackerapp-c7030",
+                storageBucket: "attendancetrackerapp-c7030.appspot.com",
+                messagingSenderId: "319888158739",
+                appId: "1:319888158739:web:999fac64fbd7f968b80fe6"
+            };
+            console.warn("Using fallback Firebase config. For production, ensure __firebase_config is set.");
+        }
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- DOM Elements & State ---
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const appHeader = document.getElementById('app-header');
+        const views = {
+            login: document.getElementById('login-view'),
+            dashboard: document.getElementById('dashboard-view'),
+            eventDetail: document.getElementById('event-detail-view'),
+            studentManagement: document.getElementById('student-management-view'),
+            qrCode: document.getElementById('qr-code-view'),
+            attendance: document.getElementById('attendance-view'),
+        };
+
+        let currentUser = null;
+        let currentEventId = null;
+        let currentEventName = '';
+        let currentClassId = null;
+        let currentClassName = '';
+        
+        let classUnsubscribe = null;
+        let studentUnsubscribe = null;
+        let eventUnsubscribe = null;
+        let attendanceUnsubscribe = null;
+        let attendanceTableUnsubscribe = null;
+        
+        let html5QrCode = null;
+        let isScanning = false;
+        let lastScanTime = 0;
+        let deleteHandler = null;
+
+        // --- UI Helper Functions ---
+        const showView = (viewName) => {
+            Object.values(views).forEach(view => view.classList.add('hidden'));
+            if (views[viewName]) views[viewName].classList.remove('hidden');
+            
+            // Handle scanner state based on view
+            if (viewName === 'attendance') startScanner();
+            else if (html5QrCode && isScanning) stopScanner();
+        };
+
+        const showToast = (message, isError = false) => {
+            const toast = document.getElementById('toast');
+            toast.className = `fixed bottom-5 right-5 text-white py-3 px-6 rounded-lg shadow-lg transition-all duration-300 z-50 transform ${isError ? 'bg-red-600' : 'bg-gray-900'}`;
+            document.getElementById('toast-message').textContent = message;
+            toast.classList.remove('opacity-0', 'translate-y-4');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+            }, 3000);
+        };
+
+        const showLoading = () => loadingSpinner.classList.remove('hidden');
+        const hideLoading = () => loadingSpinner.classList.add('hidden');
+        
+        const openModal = (modalId) => {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                 setTimeout(() => { // Delay to allow display:flex to apply before transition
+                    modal.classList.add('modal-open');
+                }, 10);
+            }
+        };
+
+        const closeModal = (modal) => {
+            if (modal) {
+                modal.classList.remove('modal-open');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                    const form = modal.querySelector('form');
+                    if(form) form.reset();
+                }, 300);
+            }
+        };
+
+        const formatDate = (timestamp) => {
+            if (!timestamp) return '';
+            return timestamp.toDate().toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            });
+        };
+
+        // --- Authentication ---
+        onAuthStateChanged(auth, user => {
+            hideLoading();
+            if (user) {
+                currentUser = user;
+                document.getElementById('user-email').textContent = user.email || `User: ${user.uid.substring(0,6)}`;
+                appHeader.classList.remove('hidden');
+                showView('dashboard');
+                loadEvents();
+            } else {
+                currentUser = null;
+                appHeader.classList.add('hidden');
+                // Only show login form if there is no custom token to attempt sign-in with
+                if (typeof __initial_auth_token === 'undefined') {
+                    showView('login');
+                }
+                // Cleanup listeners on logout
+                [classUnsubscribe, studentUnsubscribe, eventUnsubscribe, attendanceUnsubscribe, attendanceTableUnsubscribe].forEach(unsub => unsub && unsub());
+            }
+        });
+        
+        async function attemptInitialAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    // If no token, the onAuthStateChanged will handle showing the login page
+                    hideLoading();
+                    showView('login');
+                }
+            } catch (error) {
+                console.error("Custom token sign-in failed:", error);
+                hideLoading();
+                showView('login'); // Fallback to manual login
+            }
+        }
+
+        document.getElementById('logout-button').addEventListener('click', () => signOut(auth));
+        
+        // --- Event Listeners for Auth Forms ---
+        let isSignupMode = false;
+        document.getElementById('toggle-auth-mode').addEventListener('click', () => {
+             isSignupMode = !isSignupMode;
+             document.getElementById('login-form').classList.toggle('hidden', isSignupMode);
+             document.getElementById('signup-form').classList.toggle('hidden', !isSignupMode);
+             document.getElementById('auth-title').textContent = isSignupMode ? 'Create Account' : 'Teacher Login';
+             document.getElementById('auth-subtitle').textContent = isSignupMode ? 'Join us! Please create your teacher account.' : 'Welcome back! Please sign in to continue.';
+             document.getElementById('toggle-text').textContent = isSignupMode ? 'Already have an account?' : "Don't have an account?";
+             document.getElementById('toggle-auth-mode').textContent = isSignupMode ? 'Sign in here' : 'Sign up here';
+             document.getElementById('auth-error').textContent = '';
+        });
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const authError = document.getElementById('auth-error');
+            showLoading();
+            authError.textContent = '';
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                authError.textContent = error.message.replace('Firebase: ', '');
+                hideLoading();
+            }
+        });
+
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const authError = document.getElementById('auth-error');
+            authError.textContent = '';
+            if (password !== confirmPassword) {
+                authError.textContent = 'Passwords do not match.';
+                return;
+            }
+            showLoading();
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                showToast('Account created successfully!');
+            } catch (error) {
+                authError.textContent = error.message.replace('Firebase: ', '');
+                hideLoading();
+            }
+        });
+
+        // --- Navigation ---
+        document.getElementById('back-to-dashboard-from-event-detail').addEventListener('click', () => {
+            if (classUnsubscribe) classUnsubscribe();
+            currentEventId = null;
+            showView('dashboard');
+        });
+        document.getElementById('back-to-event-detail-from-manage').addEventListener('click', () => {
+            if (attendanceTableUnsubscribe) attendanceTableUnsubscribe();
+            if (studentUnsubscribe) studentUnsubscribe();
+            showView('eventDetail');
+        });
+        document.getElementById('back-to-event-detail-from-scanner').addEventListener('click', () => {
+            if (attendanceUnsubscribe) attendanceUnsubscribe();
+            showView('eventDetail');
+        });
+        document.getElementById('back-to-student-management-from-qr').addEventListener('click', () => showView('studentManagement'));
+        
+        // --- Modal Management ---
+        document.querySelectorAll('.modal-cancel').forEach(btn => {
+            btn.addEventListener('click', () => closeModal(btn.closest('.modal-backdrop')));
+        });
+        
+        // --- Confirmation Modal Logic ---
+        const confirmModal = document.getElementById('confirm-modal');
+        document.getElementById('confirm-delete-btn').addEventListener('click', () => {
+            if (deleteHandler) {
+                deleteHandler();
+            }
+            closeModal(confirmModal);
+        });
+
+        function showConfirmationModal(title, message, onConfirm) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            deleteHandler = onConfirm;
+            openModal('confirm-modal');
+        }
+
+        // --- Helper function for recursive deletion ---
+        async function deleteEventCompletely(eventId) {
+            try {
+                // Get all classes for this event
+                const classesRef = collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${eventId}/classes`);
+                const classesSnapshot = await getDocs(classesRef);
+                
+                // Delete each class and its subcollections
+                for (const classDoc of classesSnapshot.docs) {
+                    const classId = classDoc.id;
+                    
+                    // Delete all students in this class
+                    const studentsRef = collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${eventId}/classes/${classId}/students`);
+                    const studentsSnapshot = await getDocs(studentsRef);
+                    
+                    for (const studentDoc of studentsSnapshot.docs) {
+                        await deleteDoc(studentDoc.ref);
+                    }
+                    
+                    // Delete the class document
+                    await deleteDoc(classDoc.ref);
+                }
+                
+                // Delete attendance records for this event
+                const attendanceQuery = query(
+                    collection(db, `artifacts/${appId}/public/data/attendance`),
+                    where("eventId", "==", eventId),
+                    where("teacherId", "==", currentUser.uid)
+                );
+                const attendanceSnapshot = await getDocs(attendanceQuery);
+                
+                for (const attendanceDoc of attendanceSnapshot.docs) {
+                    await deleteDoc(attendanceDoc.ref);
+                }
+                
+                // Finally, delete the main event document
+                await deleteDoc(doc(db, `artifacts/${appId}/users/${currentUser.uid}/events`, eventId));
+                
+                return true;
+            } catch (error) {
+                console.error("Error in deleteEventCompletely:", error);
+                throw error;
+            }
+        }
+
+        // --- Event Management (Dashboard) ---
+        document.getElementById('open-create-event-modal').addEventListener('click', () => openModal('create-event-modal'));
+        document.getElementById('create-event-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const eventName = document.getElementById('event-name').value;
+            const eventDate = document.getElementById('event-date').value;
+            if (!eventName || !eventDate) return;
+            showLoading();
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events`), {
+                    name: eventName,
+                    date: Timestamp.fromDate(new Date(eventDate + 'T00:00:00')),
+                });
+                showToast("Event created successfully!");
+                closeModal(document.getElementById('create-event-modal'));
+            } catch(err) {
+                showToast("Error creating event.", true);
+                console.error(err);
+            } finally {
+                hideLoading();
+            }
+        });
+        
+        document.getElementById('edit-event-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const eventId = document.getElementById('edit-event-id').value;
+            const eventName = document.getElementById('edit-event-name').value;
+            const eventDate = document.getElementById('edit-event-date').value;
+            showLoading();
+            try {
+                const eventRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/events`, eventId);
+                await updateDoc(eventRef, {
+                    name: eventName,
+                    date: Timestamp.fromDate(new Date(eventDate + 'T00:00:00')),
+                });
+                showToast("Event updated successfully!");
+                closeModal(document.getElementById('edit-event-modal'));
+            } catch(err) {
+                showToast("Error updating event.", true);
+                console.error(err);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        function updateDashboardStats(stats) {
+            const statsContainer = document.getElementById('dashboard-stats');
+            if(!statsContainer) return;
+            statsContainer.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <p class="text-sm font-medium text-gray-500">Total Events</p>
+                    <p class="text-4xl font-bold text-blue-600 mt-1">${stats.totalEvents}</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <p class="text-sm font-medium text-gray-500">Total Classes</p>
+                    <p class="text-4xl font-bold text-emerald-600 mt-1">${stats.totalClasses}</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <p class="text-sm font-medium text-gray-500">Total Students Enrolled</p>
+                    <p class="text-4xl font-bold text-purple-600 mt-1">${stats.totalStudents}</p>
+                </div>
+            `;
+        }
+
+        async function getAndRenderEventStats(eventDoc) {
+            const eventId = eventDoc.id;
+            let classCount = 0;
+            let totalStudents = 0;
+            let presentStudents = 0;
+
+            try {
+                const classesRef = collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${eventId}/classes`);
+                const classesSnapshot = await getDocs(classesRef);
+                classCount = classesSnapshot.size;
+
+                for (const classDoc of classesSnapshot.docs) {
+                    const studentsRef = collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${eventId}/classes/${classDoc.id}/students`);
+                    const studentsSnapshot = await getDocs(studentsRef);
+                    totalStudents += studentsSnapshot.size;
+                }
+
+                const today = new Date().toISOString().split('T')[0];
+                const attendanceQuery = query(
+                    collection(db, `artifacts/${appId}/public/data/attendance`),
+                    where("eventId", "==", eventId),
+                    where("teacherId", "==", currentUser.uid),
+                    where("date", "==", today)
+                );
+                const attendanceSnapshot = await getDocs(attendanceQuery);
+                
+                const presentStudentsSet = new Set();
+                attendanceSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.time_in && !data.time_out) {
+                         presentStudentsSet.add(data.studentId);
+                    }
+                });
+                presentStudents = presentStudentsSet.size;
+
+                const classCountEl = document.getElementById(`classes-count-${eventId}`);
+                const attendanceCountEl = document.getElementById(`attendance-count-${eventId}`);
+                if (classCountEl) classCountEl.textContent = classCount;
+                if (attendanceCountEl) attendanceCountEl.textContent = `${presentStudents} / ${totalStudents}`;
+
+            } catch (error) {
+                console.error(`Failed to get stats for event ${eventId}:`, error);
+                const classCountEl = document.getElementById(`classes-count-${eventId}`);
+                const attendanceCountEl = document.getElementById(`attendance-count-${eventId}`);
+                if (classCountEl) classCountEl.textContent = 'Error';
+                if (attendanceCountEl) attendanceCountEl.textContent = 'Error';
+            }
+            
+            return { classCount, totalStudents };
+        }
+
+        function loadEvents() {
+            if (eventUnsubscribe) eventUnsubscribe();
+            const q = query(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events`));
+            eventUnsubscribe = onSnapshot(q, (snapshot) => {
+                const eventList = document.getElementById('event-list');
+                eventList.innerHTML = '';
+                document.getElementById('no-events-message').classList.toggle('hidden', !snapshot.empty);
+                
+                const sortedDocs = snapshot.docs.sort((a,b) => b.data().date.toMillis() - a.data().date.toMillis());
+                
+                const allStats = {
+                    totalEvents: sortedDocs.length,
+                    totalClasses: 0,
+                    totalStudents: 0
+                };
+                
+                let processedEvents = 0;
+                if(sortedDocs.length === 0) {
+                     updateDashboardStats(allStats);
+                     return;
+                }
+                
+                sortedDocs.forEach(doc => {
+                    const event = doc.data();
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-6 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col";
+                    card.innerHTML = `
+                        <div class="flex-grow">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-800">${event.name}</h3>
+                                    <p class="text-gray-500 text-sm mt-1">${formatDate(event.date)}</p>
+                                </div>
+                                <div class="relative">
+                                    <button class="p-2 rounded-full hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity options-btn">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+                                    </button>
+                                    <div class="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg border border-gray-200 z-10 hidden options-menu">
+                                        <button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 edit-event-btn">Edit</button>
+                                        <button class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 delete-event-btn">Delete</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p class="text-gray-500">Classes</p>
+                                    <p class="font-bold text-gray-800 text-lg" id="classes-count-${doc.id}">-</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500">Attendance Today</p>
+                                    <p class="font-bold text-gray-800 text-lg" id="attendance-count-${doc.id}">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="mt-6 w-full font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 view-event-btn">View Event</button>
+                    `;
+                    
+                    const viewBtn = card.querySelector('.view-event-btn');
+                    viewBtn.addEventListener('click', () => {
+                         currentEventId = doc.id;
+                         currentEventName = event.name;
+                         document.getElementById('event-detail-name').textContent = event.name;
+                         document.getElementById('event-detail-date').textContent = formatDate(event.date);
+                         showView('eventDetail');
+                         loadClassesForEvent();
+                    });
+                    
+                    const optionsBtn = card.querySelector('.options-btn');
+                    const optionsMenu = card.querySelector('.options-menu');
+                    optionsBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        optionsMenu.classList.toggle('hidden');
+                    });
+                    
+                    card.querySelector('.edit-event-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        document.getElementById('edit-event-id').value = doc.id;
+                        document.getElementById('edit-event-name').value = event.name;
+                        document.getElementById('edit-event-date').value = event.date.toDate().toISOString().split('T')[0];
+                        openModal('edit-event-modal');
+                        optionsMenu.classList.add('hidden');
+                    });
+                    
+                    card.querySelector('.delete-event-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showConfirmationModal(
+                            'Delete Event?',
+                            `This will permanently delete the event "${event.name}" and all of its associated classes, students, and attendance data. This action cannot be undone.`,
+                            async () => {
+                                showLoading();
+                                try {
+                                    await deleteEventCompletely(doc.id);
+                                    showToast('Event and all associated data deleted successfully.');
+                                } catch(err){
+                                    showToast('Error deleting event. Please try again.', true);
+                                    console.error('Delete event error:', err);
+                                } finally {
+                                    hideLoading();
+                                }
+                            }
+                        );
+                        optionsMenu.classList.add('hidden');
+                    });
+
+                    eventList.appendChild(card);
+                    
+                    (async () => {
+                        const { classCount, totalStudents } = await getAndRenderEventStats(doc);
+                        allStats.totalClasses += classCount;
+                        allStats.totalStudents += totalStudents;
+                        processedEvents++;
+                        
+                        if (processedEvents === sortedDocs.length) {
+                             updateDashboardStats(allStats);
+                        }
+                    })();
+                });
+            });
+            
+            document.body.addEventListener('click', () => {
+                document.querySelectorAll('.options-menu').forEach(menu => menu.classList.add('hidden'));
+            }, true);
+        }
+
+        // --- Class Management (Event Detail View) ---
+        document.getElementById('open-create-class-modal').addEventListener('click', () => openModal('create-class-modal'));
+
+        document.getElementById('create-class-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading();
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`), {
+                    name: document.getElementById('class-name').value,
+                    section: document.getElementById('class-section').value,
+                });
+                showToast('Class created successfully!');
+                closeModal(document.getElementById('create-class-modal'));
+            } finally {
+                hideLoading();
+            }
+        });
+
+        function loadClassesForEvent() {
+            if (classUnsubscribe) classUnsubscribe();
+            const q = query(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`));
+            classUnsubscribe = onSnapshot(q, (snapshot) => {
+                const classList = document.getElementById('class-list-for-event');
+                classList.innerHTML = '';
+                document.getElementById('no-classes-for-event-message').classList.toggle('hidden', !snapshot.empty);
+                
+                snapshot.docs.sort((a,b)=>a.data().name.localeCompare(b.data().name)).forEach(doc => {
+                    const classData = doc.data();
+                    const item = document.createElement('div');
+                    item.className = "flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-2";
+                    item.innerHTML = `
+                        <div class="flex-grow">
+                            <p class="font-semibold text-gray-800">${classData.name}</p>
+                            <p class="text-sm text-gray-500">${classData.section || ''}</p>
+                        </div>
+                        <div class="flex items-center gap-2 self-end sm:self-center flex-wrap">
+                           <button data-class-id="${doc.id}" data-class-name="${classData.name}" class="manage-students-btn font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 text-xs">Manage</button>
+                           <button data-class-id="${doc.id}" data-class-name="${classData.name}" class="take-attendance-btn font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white focus:ring-green-500 text-xs">Take Attendance</button>
+                           <button data-class-id="${doc.id}" data-class-name="${classData.name}" class="delete-class-btn p-2 rounded-md hover:bg-red-100 text-red-500 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                           </button>
+                        </div>`;
+                    classList.appendChild(item);
+                });
+            });
+        }
+        
+        document.getElementById('class-list-for-event').addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            
+            const classId = btn.dataset.classId;
+            const className = btn.dataset.className;
+
+            if (btn.classList.contains('manage-students-btn')) {
+                currentClassId = classId;
+                currentClassName = className;
+                showView('studentManagement');
+                loadStudentManagementView();
+            } else if (btn.classList.contains('take-attendance-btn')) {
+                currentClassId = classId;
+                currentClassName = className;
+                showView('attendance');
+                loadAttendanceView();
+            } else if (btn.classList.contains('delete-class-btn')) {
+                showConfirmationModal(
+                    'Delete Class?',
+                    `This will permanently delete the class "${className}" and all associated student and attendance data. This action cannot be undone.`,
+                    async () => {
+                        showLoading();
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`, classId));
+                        showToast('Class deleted.');
+                        hideLoading();
+                    }
+                );
+            }
+        });
+
+        // --- Student Management View ---
+        document.getElementById('toggle-student-roster-btn').addEventListener('click', (e) => {
+            const container = document.getElementById('student-roster-container');
+            const isHidden = container.classList.toggle('hidden');
+            e.target.textContent = isHidden ? 'Show Student Roster' : 'Hide Student Roster';
+        });
+
+        function loadStudentManagementView() {
+            document.getElementById('student-management-class-name').textContent = currentClassName;
+            document.getElementById('student-management-event-name').textContent = `For Event: ${currentEventName}`;
+            document.getElementById('student-roster-container').classList.add('hidden');
+            document.getElementById('toggle-student-roster-btn').textContent = 'Show Student Roster';
+            loadStudents();
+            loadAttendanceTable();
+        }
+        
+        function loadStudents() {
+            if (studentUnsubscribe) studentUnsubscribe();
+            const q = query(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+            studentUnsubscribe = onSnapshot(q, (snapshot) => {
+                const studentList = document.getElementById('student-list');
+                studentList.innerHTML = '';
+                document.getElementById('no-students-message').classList.toggle('hidden', !snapshot.empty);
+                snapshot.docs.sort((a,b)=>a.data().name.localeCompare(b.data().name)).forEach(d => {
+                    const s = d.data();
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between py-3";
+                    item.innerHTML = `<div><p class="font-semibold text-gray-800">${s.name}</p><p class="text-sm text-gray-500">ID: ${s.studentId}</p></div><button data-student-id="${d.id}" data-student-name="${s.name}" class="delete-student-btn text-red-500 hover:text-red-700 p-2 rounded-full transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>`;
+                    studentList.appendChild(item);
+                });
+            });
+        }
+        
+        document.getElementById('student-list').addEventListener('click', (e) => {
+            const btn = e.target.closest('.delete-student-btn');
+            if (btn) {
+                const studentDocId = btn.dataset.studentId;
+                const studentName = btn.dataset.studentName;
+                showConfirmationModal(
+                    'Delete Student?',
+                    `Are you sure you want to delete ${studentName}?`,
+                    async () => {
+                        showLoading();
+                        await deleteDoc(doc(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students/${studentDocId}`));
+                        showToast('Student deleted.');
+                        hideLoading();
+                    }
+                );
+            }
+        });
+
+        document.getElementById('csv-file-input').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            showLoading();
+            Papa.parse(file, {
+                header: true, skipEmptyLines: true,
+                complete: async (results) => {
+                    try {
+                        for(const student of results.data) {
+                            if (student['Student ID'] && student['Name']) {
+                                const studentId = student['Student ID'].trim();
+                                const studentDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students/${studentId}`);
+                                await setDoc(studentDocRef, { name: student['Name'].trim(), studentId });
+                            }
+                        }
+                        showToast(`${results.data.length} students imported.`);
+                    } finally {
+                        hideLoading();
+                        event.target.value = '';
+                    }
+                }
+            });
+        });
+
+        document.getElementById('generate-qr-codes').addEventListener('click', async () => {
+            showLoading();
+            const qrGrid = document.getElementById('qr-code-grid');
+            qrGrid.innerHTML = '';
+            const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+            if (snapshot.empty) {
+                showToast("No students to generate QR codes for.", true);
+                hideLoading();
+                return;
+            }
+            snapshot.docs.sort((a,b) => a.data().name.localeCompare(b.data().name)).forEach(doc => {
+                const s = doc.data();
+                const card = document.createElement('div');
+                card.className = "qr-card-item text-center bg-white p-2 border rounded-lg flex flex-col items-center justify-center space-y-1 shadow-sm";
+                card.innerHTML = `<div class="mx-auto p-1 qr-container"></div><p class="font-semibold text-gray-800 text-sm break-all">${s.name}</p><p class="text-xs text-gray-500">ID: ${s.studentId}</p>`;
+                qrGrid.appendChild(card);
+                new QRCode(card.querySelector('.qr-container'), { text: JSON.stringify({ eventId: currentEventId, classId: currentClassId, studentId: s.studentId, teacherId: currentUser.uid }), width: 128, height: 128 });
+            });
+            showView('qrCode');
+            hideLoading();
+        });
+
+        document.getElementById('download-qr-zip').addEventListener('click', async () => {
+            showToast("Generating ZIP... Please wait.");
+            showLoading();
+            try {
+                const zip = new JSZip();
+                const folder = zip.folder("qr-code-cards");
+                const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+                if (snapshot.empty) { showToast("No students to generate codes for.", true); return; }
+                
+                const tempContainer = document.createElement('div');
+                tempContainer.style.cssText = 'position:absolute; left:-9999px;';
+                document.body.appendChild(tempContainer);
+
+                for (const doc of snapshot.docs) {
+                    const student = doc.data();
+                    const qrDiv = document.createElement('div');
+                    tempContainer.appendChild(qrDiv);
+                    new QRCode(qrDiv, { text: JSON.stringify({ eventId: currentEventId, classId: currentClassId, studentId: student.studentId, teacherId: currentUser.uid }), width: 256, height: 256 });
+                    await new Promise(r => setTimeout(r, 50)); // Allow QR code to render
+                    
+                    const img = qrDiv.querySelector('img');
+                    if (!img) continue;
+
+                    const canvas = document.createElement('canvas');
+                    [canvas.width, canvas.height] = [300, 380];
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, 300, 380);
+                    ctx.drawImage(img, (300-256)/2, 15, 256, 256);
+                    
+                    ctx.fillStyle = '#1f2937';
+                    ctx.textAlign = 'center';
+                    let fontSize = 24;
+                    const maxWidth = 280;
+                    ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+
+                    while (ctx.measureText(student.name).width > maxWidth && fontSize > 10) {
+                        fontSize--;
+                        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+                    }
+                    ctx.fillText(student.name, 150, 306);
+
+                    ctx.fillStyle = '#6b7280'; ctx.font = '18px Inter, sans-serif';
+                    ctx.fillText(`ID: ${student.studentId}`, 150, 336);
+                    folder.file(`${student.name.replace(/ /g, '_')}-${student.studentId}.png`, canvas.toDataURL('image/png').split(',')[1], { base64: true });
+                    tempContainer.removeChild(qrDiv);
+                }
+                
+                document.body.removeChild(tempContainer);
+                const content = await zip.generateAsync({ type: "blob" });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `qr-cards-${currentClassName.replace(/ /g, '_')}.zip`;
+                link.click();
+                showToast("QR code cards ZIP downloaded!");
+            } finally {
+                hideLoading();
+            }
+        });
+
+        document.getElementById('download-csv-template').addEventListener('click', () => {
+            const link = document.createElement("a");
+            link.href = 'data:text/csv;charset=utf-8,' + encodeURI("Student ID,Name\n12345,John Doe\n");
+            link.download = "student-template.csv";
+            link.click();
+        });
+
+        document.getElementById('export-event-attendance').addEventListener('click', async () => {
+            showLoading();
+            try {
+                const students = {};
+                const studentSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+                studentSnapshot.forEach(doc => students[doc.data().studentId] = doc.data().name);
+
+                const attendanceQuery = query(collection(db, `artifacts/${appId}/public/data/attendance`), where("eventId", "==", currentEventId), where("classId", "==", currentClassId), where("teacherId", "==", currentUser.uid));
+                const attendanceSnapshot = await getDocs(attendanceQuery);
+
+                if (attendanceSnapshot.empty) { showToast('No attendance records to export.', true); return; }
+
+                const reportData = attendanceSnapshot.docs
+                    .map(doc => doc.data()).filter(r => r.time_in)
+                    .sort((a,b) => (students[a.studentId] || '').localeCompare(students[b.studentId] || ''))
+                    .map(r => [ r.studentId, students[r.studentId] || 'Unknown', formatDate(r.time_in), r.time_in.toDate().toLocaleTimeString(), r.time_out ? r.time_out.toDate().toLocaleTimeString() : 'N/A' ]);
+
+                const { jsPDF } = window.jspdf;
+                const docPDF = new jsPDF();
+                docPDF.text(`Attendance: ${currentEventName} - ${currentClassName}`, 14, 20);
+                docPDF.autoTable({ head: [['ID', 'Name', 'Date', 'In', 'Out']], body: reportData, startY: 30 });
+                docPDF.save(`attendance-${currentEventName.replace(/ /g,'_')}-${currentClassName.replace(/ /g,'_')}.pdf`);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        async function loadAttendanceTable() {
+            if (attendanceTableUnsubscribe) attendanceTableUnsubscribe();
+
+            const students = new Map();
+            const studentSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+            studentSnapshot.forEach(doc => students.set(doc.data().studentId, doc.data().name));
+
+            const tableBody = document.getElementById('live-attendance-table-body');
+            const noRecordsMsg = document.getElementById('no-attendance-records-message');
+            
+            const q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
+                where("classId", "==", currentClassId),
+                where("eventId", "==", currentEventId),
+                where("teacherId", "==", currentUser.uid)
+            );
+
+            attendanceTableUnsubscribe = onSnapshot(q, (snapshot) => {
+                tableBody.innerHTML = ''; 
+                noRecordsMsg.classList.toggle('hidden', !snapshot.empty);
+
+                if (snapshot.empty) return;
+                
+                const records = snapshot.docs.map(doc => doc.data()).filter(r => r.time_in);
+                records.sort((a,b) => b.time_in.toMillis() - a.time_in.toMillis());
+
+                records.forEach(record => {
+                    const studentName = students.get(record.studentId) || 'Unknown Student';
+                    const timeIn = record.time_in ? record.time_in.toDate().toLocaleTimeString() : 'N/A';
+                    const timeOut = record.time_out ? record.time_out.toDate().toLocaleTimeString() : 'N/A';
+                    
+                    const row = tableBody.insertRow();
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${studentName}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.studentId}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${timeIn}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${timeOut}</td>
+                    `;
+                });
+            });
+        }
+        
+        // --- Attendance View & Scanner Logic ---
+        async function loadAttendanceView() {
+            document.getElementById('attendance-view-title').textContent = `${currentClassName} (${currentEventName})`;
+            const studentList = document.getElementById('attendance-student-list');
+            studentList.innerHTML = '';
+            
+            const studentsSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`)));
+            const studentData = studentsSnapshot.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.name.localeCompare(b.name));
+
+            studentData.forEach(student => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between py-3 transition-colors duration-300";
+                item.dataset.studentId = student.studentId;
+                item.innerHTML = `
+                    <div>
+                        <p class="font-semibold text-gray-800">${student.name}</p>
+                        <p class="text-sm text-gray-500">ID: ${student.studentId}</p>
+                    </div>
+                    <div class="status-indicator text-sm font-bold text-gray-400">Absent</div>`;
+                studentList.appendChild(item);
+            });
+            listenForAttendanceUpdates();
+        }
+
+        function listenForAttendanceUpdates() {
+            if(attendanceUnsubscribe) attendanceUnsubscribe();
+            const today = new Date().toISOString().split('T')[0];
+            const q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
+                where("classId", "==", currentClassId),
+                where("eventId", "==", currentEventId),
+                where("teacherId", "==", currentUser.uid),
+                where("date", "==", today)
+            );
+
+            attendanceUnsubscribe = onSnapshot(q, (snapshot) => {
+                document.querySelectorAll('#attendance-student-list > div').forEach(row => {
+                    row.classList.remove('bg-green-100', 'bg-blue-100');
+                    const indicator = row.querySelector('.status-indicator');
+                    indicator.textContent = 'Absent';
+                    indicator.className = 'status-indicator text-sm font-bold text-gray-400';
+                });
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    updateStudentStatusInList(data.studentId, data.time_in, data.time_out);
+                });
+            });
+        }
+        
+        function updateStudentStatusInList(studentId, timeIn, timeOut) {
+            const studentRow = document.querySelector(`#attendance-student-list [data-student-id="${studentId}"]`);
+            if (!studentRow) return;
+            const indicator = studentRow.querySelector('.status-indicator');
+            studentRow.classList.remove('bg-green-100', 'bg-blue-100');
+
+            if (timeIn && !timeOut) {
+                studentRow.classList.add('bg-green-100');
+                indicator.textContent = 'Present';
+                indicator.className = 'status-indicator text-sm font-bold text-green-600';
+            } else if (timeIn && timeOut) {
+                studentRow.classList.add('bg-blue-100');
+                indicator.textContent = 'Completed';
+                indicator.className = 'status-indicator text-sm font-bold text-blue-600';
+            }
+        }
+
+        const onScanSuccess = async (decodedText) => {
+            if (Date.now() - lastScanTime < 3000) return; // Debounce scans
+            lastScanTime = Date.now();
+            let qrData;
+            try { qrData = JSON.parse(decodedText); } catch { showToast("Invalid QR Code.", true); return; }
+            
+            if(qrData.classId !== currentClassId || qrData.eventId !== currentEventId) { 
+                showToast("QR Code is not for this class/event.", true); 
+                return; 
+            }
+
+            const studentDoc = await getDoc(doc(db, `artifacts/${appId}/users/${qrData.teacherId}/events/${qrData.eventId}/classes/${qrData.classId}/students/${qrData.studentId}`));
+            if (!studentDoc.exists()) { showToast(`Student not found.`, true); return; }
+            const studentName = studentDoc.data().name;
+            
+            const today = new Date().toISOString().split('T')[0];
+            const attendanceId = `${qrData.classId}-${qrData.studentId}-${qrData.eventId}-${today}`;
+            const attendanceRef = doc(db, `artifacts/${appId}/public/data/attendance/${attendanceId}`);
+            
+            const scanMode = document.getElementById('scan-mode').value;
+
+            try {
+                const attendanceSnap = await getDoc(attendanceRef);
+
+                if (scanMode === 'time_in') {
+                    await setDoc(attendanceRef, { teacherId: qrData.teacherId, eventId: qrData.eventId, classId: qrData.classId, studentId: qrData.studentId, time_in: serverTimestamp(), time_out: null, date: today }, { merge: true });
+                    showToast(`${studentName} forced IN.`);
+                    return;
+                }   
+                
+                if (scanMode === 'time_out') {
+                    if (attendanceSnap.exists() && attendanceSnap.data().time_in) {
+                        await updateDoc(attendanceRef, { time_out: serverTimestamp() });
+                        showToast(`${studentName} forced OUT.`);
+                    } else {
+                        showToast(`${studentName} must sign IN first.`, true);
+                    }
+                    return;
+                }
+
+                // Automatic Mode
+                if (!attendanceSnap.exists() || !attendanceSnap.data().time_in) {
+                    await setDoc(attendanceRef, { teacherId: qrData.teacherId, eventId: qrData.eventId, classId: qrData.classId, studentId: qrData.studentId, time_in: serverTimestamp(), time_out: null, date: today });
+                    showToast(`${studentName} signed IN.`);
+                } else if (attendanceSnap.data().time_in && !attendanceSnap.data().time_out) {
+                    await updateDoc(attendanceRef, { time_out: serverTimestamp() });
+                    showToast(`${studentName} signed OUT.`);
+                } else {
+                    showToast(`${studentName} already signed in and out.`, true);
+                }
+            } catch (err) {
+                console.error("Error processing scan: ", err);
+                showToast("An error occurred.", true);
+            }
+        };
+
+        function startScanner() {
+            if (isScanning) return;
+            try {
+                html5QrCode = new Html5Qrcode("qr-reader");
+                html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess, ()=>{})
+                    .then(() => isScanning = true).catch(err => { console.error(err); showToast("Could not start camera.", true) });
+            } catch(e) {
+                console.error(e);
+                showToast("Scanner failed to initialize.", true);
+            }
+        }
+        
+        function stopScanner() {
+            if (!isScanning || !html5QrCode) return;
+            try {
+                html5QrCode.stop().then(() => isScanning = false).catch(()=>{});
+            } catch(e) {
+                console.error("Error stopping scanner: ", e);
+                isScanning = false;
+            }
+        }
+        
+        // --- App Start ---
+        showLoading();
+        attemptInitialAuth();
+
+    </script>
+</body>
+</html>
+
