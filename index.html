@@ -149,10 +149,20 @@
                             <h2 id="event-detail-name" class="text-3xl font-bold"></h2>
                             <p id="event-detail-date" class="text-lg text-gray-600 mt-1"></p>
                         </div>
-                        <button id="open-create-class-modal" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white focus:ring-green-500 self-start md:self-center flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-2 hidden sm:block"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            Create Class
-                        </button>
+                        <div class="flex items-center gap-2 self-start md:self-center flex-wrap">
+                             <button id="start-event-attendance-btn" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white focus:ring-green-500 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                Take Attendance
+                            </button>
+                            <button id="export-all-attendance-btn" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-purple-600 hover:bg-purple-700 text-white focus:ring-purple-500 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 hidden sm:block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Export All Attendance
+                            </button>
+                            <button id="open-create-class-modal" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-2 hidden sm:block"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                Create Class
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-lg">
@@ -275,9 +285,9 @@
                         </div>
                         <div id="qr-reader" class="w-full max-w-sm mx-auto border-4 border-dashed border-gray-300 rounded-lg overflow-hidden flex-grow min-h-[250px]"></div>
                     </div>
-                    <!-- Right Column: Student List -->
+                    <!-- Right Column: Student List / Activity Log -->
                     <div class="lg:w-1/2 bg-white p-4 md:p-6 rounded-xl shadow-lg">
-                        <h3 class="text-2xl font-bold mb-4">Student Status</h3>
+                        <h3 class="text-2xl font-bold mb-4">Recent Activity</h3>
                         <div id="attendance-student-list" class="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto"></div>
                     </div>
                 </div>
@@ -751,8 +761,6 @@
                 if (classCountEl) classCountEl.textContent = classCount;
                 if (attendanceCountEl) attendanceCountEl.textContent = `${presentStudents} / ${totalStudents}`;
 
-                console.log(`Event ${eventId} stats: ${presentStudents} present out of ${totalStudents} total students`);
-
             } catch (error) {
                 console.error(`Failed to get stats for event ${eventId}:`, error);
                 const classCountEl = document.getElementById(`classes-count-${eventId}`);
@@ -823,12 +831,12 @@
                     
                     const viewBtn = card.querySelector('.view-event-btn');
                     viewBtn.addEventListener('click', () => {
-                         currentEventId = doc.id;
-                         currentEventName = event.name;
-                         document.getElementById('event-detail-name').textContent = event.name;
-                         document.getElementById('event-detail-date').textContent = formatDate(event.date);
-                         showView('eventDetail');
-                         loadClassesForEvent();
+                        currentEventId = doc.id;
+                        currentEventName = event.name;
+                        document.getElementById('event-detail-name').textContent = event.name;
+                        document.getElementById('event-detail-date').textContent = formatDate(event.date);
+                        showView('eventDetail');
+                        loadClassesForEvent();
                     });
                     
                     const optionsBtn = card.querySelector('.options-btn');
@@ -890,6 +898,14 @@
 
         // --- Class Management (Event Detail View) ---
         document.getElementById('open-create-class-modal').addEventListener('click', () => openModal('create-class-modal'));
+        
+        document.getElementById('start-event-attendance-btn').addEventListener('click', () => {
+            currentClassId = null; 
+            currentClassName = '';
+            showView('attendance');
+            loadAttendanceView(true); // event-wide mode
+        });
+
 
         document.getElementById('create-class-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -906,6 +922,43 @@
             }
         });
 
+        async function getClassAttendanceStats(classId) {
+            try {
+                // Get total students in this class
+                const studentsRef = collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${classId}/students`);
+                const studentsSnapshot = await getDocs(studentsRef);
+                const totalStudents = studentsSnapshot.size;
+
+                // Get students who timed in today
+                const today = new Date().toISOString().split('T')[0];
+                const attendanceQuery = query(
+                    collection(db, `artifacts/${appId}/public/data/attendance`),
+                    where("eventId", "==", currentEventId),
+                    where("classId", "==", classId),
+                    where("teacherId", "==", currentUser.uid),
+                    where("date", "==", today)
+                );
+                const attendanceSnapshot = await getDocs(attendanceQuery);
+                
+                // Count unique students with time_in
+                const timedInStudents = new Set();
+                attendanceSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.time_in) {
+                        timedInStudents.add(data.studentId);
+                    }
+                });
+
+                return {
+                    timedIn: timedInStudents.size,
+                    total: totalStudents
+                };
+            } catch (error) {
+                console.error(`Error getting attendance stats for class ${classId}:`, error);
+                return { timedIn: 0, total: 0 };
+            }
+        }
+
         function loadClassesForEvent() {
             if (classUnsubscribe) classUnsubscribe();
             const q = query(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`));
@@ -916,21 +969,44 @@
                 
                 snapshot.docs.sort((a,b)=>a.data().name.localeCompare(b.data().name)).forEach(doc => {
                     const classData = doc.data();
+                    const classId = doc.id;
                     const item = document.createElement('div');
                     item.className = "flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-2";
                     item.innerHTML = `
                         <div class="flex-grow">
                             <p class="font-semibold text-gray-800">${classData.name}</p>
                             <p class="text-sm text-gray-500">${classData.section || ''}</p>
+                            <p class="text-sm text-gray-600 mt-1">
+                                <span class="font-medium">Attendance Today:</span> 
+                                <span id="attendance-${classId}" class="text-blue-600 font-semibold">Loading...</span>
+                            </p>
                         </div>
                         <div class="flex items-center gap-2 self-end sm:self-center flex-wrap">
-                           <button data-class-id="${doc.id}" data-class-name="${classData.name}" class="manage-students-btn font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 text-xs">Manage</button>
-                           <button data-class-id="${doc.id}" data-class-name="${classData.name}" class="take-attendance-btn font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white focus:ring-green-500 text-xs">Take Attendance</button>
-                           <button data-class-id="${doc.id}" data-class-name="${classData.name}" class="delete-class-btn p-2 rounded-md hover:bg-red-100 text-red-500 transition-colors">
+                           <button data-class-id="${classId}" data-class-name="${classData.name}" class="manage-students-btn font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 text-xs">Manage Students</button>
+                           <button data-class-id="${classId}" data-class-name="${classData.name}" class="delete-class-btn p-2 rounded-md hover:bg-red-100 text-red-500 transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                            </button>
                         </div>`;
                     classList.appendChild(item);
+
+                    // Load attendance stats asynchronously
+                    (async () => {
+                        const stats = await getClassAttendanceStats(classId);
+                        const attendanceEl = document.getElementById(`attendance-${classId}`);
+                        if (attendanceEl) {
+                            attendanceEl.textContent = `${stats.timedIn} / ${stats.total}`;
+                            // Add color coding based on attendance
+                            if (stats.total === 0) {
+                                attendanceEl.className = 'text-gray-500 font-semibold';
+                            } else if (stats.timedIn === stats.total) {
+                                attendanceEl.className = 'text-green-600 font-semibold';
+                            } else if (stats.timedIn > 0) {
+                                attendanceEl.className = 'text-blue-600 font-semibold';
+                            } else {
+                                attendanceEl.className = 'text-red-600 font-semibold';
+                            }
+                        }
+                    })();
                 });
             });
         }
@@ -947,11 +1023,6 @@
                 currentClassName = className;
                 showView('studentManagement');
                 loadStudentManagementView();
-            } else if (btn.classList.contains('take-attendance-btn')) {
-                currentClassId = classId;
-                currentClassName = className;
-                showView('attendance');
-                loadAttendanceView();
             } else if (btn.classList.contains('delete-class-btn')) {
                 showConfirmationModal(
                     'Delete Class?',
@@ -1157,6 +1228,99 @@
             }
         });
 
+        // Export All Attendance for Event
+        document.getElementById('export-all-attendance-btn').addEventListener('click', async () => {
+            showLoading();
+            showToast("Generating attendance reports... Please wait.");
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const zip = new JSZip();
+                const folder = zip.folder("attendance-reports");
+                
+                // Get all classes for this event
+                const classesSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`));
+                
+                if (classesSnapshot.empty) {
+                    showToast('No classes found for this event.', true);
+                    return;
+                }
+
+                let hasAttendance = false;
+
+                for (const classDoc of classesSnapshot.docs) {
+                    const classData = classDoc.data();
+                    const classId = classDoc.id;
+                    const className = classData.name;
+
+                    // Get students for this class
+                    const students = {};
+                    const studentSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${classId}/students`));
+                    studentSnapshot.forEach(doc => students[doc.data().studentId] = doc.data().name);
+
+                    // Get attendance for this class
+                    const attendanceQuery = query(
+                        collection(db, `artifacts/${appId}/public/data/attendance`),
+                        where("eventId", "==", currentEventId),
+                        where("classId", "==", classId),
+                        where("teacherId", "==", currentUser.uid)
+                    );
+                    const attendanceSnapshot = await getDocs(attendanceQuery);
+
+                    if (!attendanceSnapshot.empty) {
+                        hasAttendance = true;
+
+                        const reportData = attendanceSnapshot.docs
+                            .map(doc => doc.data())
+                            .filter(r => r.time_in)
+                            .sort((a,b) => (students[a.studentId] || '').localeCompare(students[b.studentId] || ''))
+                            .map(r => [
+                                r.studentId,
+                                students[r.studentId] || 'Unknown',
+                                formatDate(r.time_in),
+                                r.time_in.toDate().toLocaleTimeString(),
+                                r.time_out ? r.time_out.toDate().toLocaleTimeString() : 'N/A'
+                            ]);
+
+                        // Create PDF for this class
+                        const docPDF = new jsPDF();
+                        docPDF.text(`Attendance Report`, 14, 15);
+                        docPDF.setFontSize(12);
+                        docPDF.text(`Event: ${currentEventName}`, 14, 25);
+                        docPDF.text(`Class: ${className}`, 14, 32);
+                        docPDF.autoTable({
+                            head: [['Student ID', 'Name', 'Date', 'Time In', 'Time Out']],
+                            body: reportData,
+                            startY: 40
+                        });
+
+                        // Add PDF to ZIP
+                        const pdfBlob = docPDF.output('blob');
+                        folder.file(`${className.replace(/ /g, '_')}_attendance.pdf`, pdfBlob);
+                    }
+                }
+
+                if (!hasAttendance) {
+                    showToast('No attendance records found for any class in this event.', true);
+                    return;
+                }
+
+                // Generate and download ZIP
+                const content = await zip.generateAsync({ type: "blob" });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `${currentEventName.replace(/ /g, '_')}_all_attendance.zip`;
+                link.click();
+                
+                showToast("All attendance reports downloaded successfully!");
+            } catch (error) {
+                console.error("Error exporting all attendance:", error);
+                showToast("Error generating attendance reports.", true);
+            } finally {
+                hideLoading();
+            }
+        });
+
         async function loadAttendanceTable() {
             if (attendanceTableUnsubscribe) attendanceTableUnsubscribe();
 
@@ -1191,13 +1355,10 @@
                 records.sort((a,b) => b.time_in.toMillis() - a.time_in.toMillis());
 
                 records.forEach(record => {
-                    // Enhanced student name lookup with better error handling
                     let studentName = students.get(record.studentId);
                     
-                    // If student not found in current class, it might be a data consistency issue
                     if (!studentName) {
-                        console.warn(`Student ID ${record.studentId} not found in class roster. This might indicate a data sync issue.`);
-                        studentName = `Unknown Student (ID: ${record.studentId})`;
+                        studentName = `Unknown (ID: ${record.studentId})`;
                     }
                     
                     const timeIn = record.time_in ? record.time_in.toDate().toLocaleTimeString() : 'N/A';
@@ -1215,78 +1376,109 @@
         }
         
         // --- Attendance View & Scanner Logic ---
-        async function loadAttendanceView() {
-            document.getElementById('attendance-view-title').textContent = `${currentClassName} (${currentEventName})`;
-            const studentList = document.getElementById('attendance-student-list');
-            studentList.innerHTML = '';
+        async function loadAttendanceView(isEventWide = false) {
+            document.getElementById('attendance-view-title').textContent = isEventWide 
+                ? `Scanning for ${currentEventName}`
+                : `${currentClassName} (${currentEventName})`;
             
-            const studentsSnapshot = await getDocs(query(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`)));
-            const studentData = studentsSnapshot.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.name.localeCompare(b.name));
-
-            studentData.forEach(student => {
-                const item = document.createElement('div');
-                item.className = "flex items-center justify-between py-3 transition-colors duration-300";
-                item.dataset.studentId = student.studentId;
-                item.innerHTML = `
-                    <div>
-                        <p class="font-semibold text-gray-800">${student.name}</p>
-                        <p class="text-sm text-gray-500">ID: ${student.studentId}</p>
-                    </div>
-                    <div class="status-indicator text-sm font-bold text-gray-400">Absent</div>`;
-                studentList.appendChild(item);
-            });
-            listenForAttendanceUpdates();
+            const logContainer = document.getElementById('attendance-student-list');
+            logContainer.innerHTML = `<div class="text-center py-8 text-gray-500">
+                <p>Ready to scan...</p>
+            </div>`;
+            listenForAttendanceUpdates(isEventWide);
         }
 
-        function listenForAttendanceUpdates() {
+        async function listenForAttendanceUpdates(isEventWide = false) {
             if(attendanceUnsubscribe) attendanceUnsubscribe();
             const today = new Date().toISOString().split('T')[0];
-            const q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
-                where("classId", "==", currentClassId),
-                where("eventId", "==", currentEventId),
-                where("teacherId", "==", currentUser.uid),
-                where("date", "==", today)
-            );
+            
+            let q;
+            if (isEventWide) {
+                q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
+                    where("eventId", "==", currentEventId),
+                    where("teacherId", "==", currentUser.uid),
+                    where("date", "==", today)
+                );
+            } else {
+                // This case is not used with the new UI, but kept for potential future use
+                q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
+                    where("classId", "==", currentClassId),
+                    where("eventId", "==", currentEventId),
+                    where("teacherId", "==", currentUser.uid),
+                    where("date", "==", today)
+                );
+            }
+            
+             // Pre-fetch all class and student names for the event for performance
+            const eventClasses = new Map();
+            const eventStudents = new Map(); // Map<studentId, { name: string, className: string }>
+            const classesSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`));
+            for(const classDoc of classesSnapshot.docs) {
+                eventClasses.set(classDoc.id, classDoc.data().name);
+                const studentsSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${classDoc.id}/students`));
+                studentsSnapshot.forEach(studentDoc => {
+                    eventStudents.set(studentDoc.id, { name: studentDoc.data().name, className: classDoc.data().name });
+                });
+            }
 
             attendanceUnsubscribe = onSnapshot(q, (snapshot) => {
-                document.querySelectorAll('#attendance-student-list > div').forEach(row => {
-                    row.classList.remove('bg-green-100', 'bg-blue-100');
-                    const indicator = row.querySelector('.status-indicator');
-                    indicator.textContent = 'Absent';
-                    indicator.className = 'status-indicator text-sm font-bold text-gray-400';
+                const logContainer = document.getElementById('attendance-student-list');
+                logContainer.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    logContainer.innerHTML = `<div class="text-center py-8 text-gray-500">
+                        <p>No scans for this event yet today.</p>
+                        <p class="text-sm mt-2">Scan a student's QR code to begin.</p>
+                    </div>`;
+                    return;
+                }
+
+                const records = snapshot.docs.map(doc => doc.data()).sort((a,b) => {
+                    const timeA = (a.time_out || a.time_in).toMillis();
+                    const timeB = (b.time_out || b.time_in).toMillis();
+                    return timeB - timeA;
                 });
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    updateStudentStatusInList(data.studentId, data.time_in, data.time_out);
+                
+                records.forEach(record => {
+                    const studentInfo = eventStudents.get(record.studentId);
+                    const studentName = studentInfo ? studentInfo.name : 'Unknown Student';
+                    const className = studentInfo ? studentInfo.className : 'Unknown Class';
+
+                    let status, statusColor, statusText, time;
+                    if (record.time_in && !record.time_out) {
+                        status = 'IN'; statusColor = 'bg-green-100 text-green-800'; time = record.time_in;
+                    } else if (record.time_in && record.time_out) {
+                        status = 'OUT'; statusColor = 'bg-blue-100 text-blue-800'; time = record.time_out;
+                    }
+
+                    statusText = time ? `at ${time.toDate().toLocaleTimeString()}` : '';
+
+                    const logItem = document.createElement('div');
+                    logItem.className = 'py-3';
+                    logItem.innerHTML = `
+                        <div class="flex items-center justify-between">
+                             <div>
+                                <p class="font-semibold text-gray-800">${studentName}</p>
+                                <p class="text-sm text-gray-500">Class: ${className}</p>
+                             </div>
+                             <div class="text-right">
+                                <span class="px-2 py-1 text-xs font-bold rounded-full ${statusColor}">${status}</span>
+                                <p class="text-xs text-gray-500 mt-1">${statusText}</p>
+                             </div>
+                        </div>`;
+                    logContainer.appendChild(logItem);
                 });
             });
         }
         
-        function updateStudentStatusInList(studentId, timeIn, timeOut) {
-            const studentRow = document.querySelector(`#attendance-student-list [data-student-id="${studentId}"]`);
-            if (!studentRow) return;
-            const indicator = studentRow.querySelector('.status-indicator');
-            studentRow.classList.remove('bg-green-100', 'bg-blue-100');
-
-            if (timeIn && !timeOut) {
-                studentRow.classList.add('bg-green-100');
-                indicator.textContent = 'Present';
-                indicator.className = 'status-indicator text-sm font-bold text-green-600';
-            } else if (timeIn && timeOut) {
-                studentRow.classList.add('bg-blue-100');
-                indicator.textContent = 'Completed';
-                indicator.className = 'status-indicator text-sm font-bold text-blue-600';
-            }
-        }
-
         const onScanSuccess = async (decodedText) => {
             if (Date.now() - lastScanTime < 3000) return; // Debounce scans
             lastScanTime = Date.now();
             let qrData;
             try { qrData = JSON.parse(decodedText); } catch { showToast("Invalid QR Code.", true); return; }
             
-            if(qrData.classId !== currentClassId || qrData.eventId !== currentEventId) { 
-                showToast("QR Code is not for this class/event.", true); 
+            if(qrData.eventId !== currentEventId) { 
+                showToast("QR Code is not for this event.", true); 
                 return; 
             }
 
@@ -1364,4 +1556,3 @@
     </script>
 </body>
 </html>
-
