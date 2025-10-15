@@ -448,6 +448,7 @@
         let isScanning = false;
         let lastScanTime = 0;
         let deleteHandler = null;
+        const detailsCache = new Map();
 
         // --- UI Helper Functions ---
         const showView = (viewName) => {
@@ -1632,18 +1633,18 @@
         }
 
         async function listenForAttendanceUpdates(isEventWide = false) {
-            if(attendanceUnsubscribe) attendanceUnsubscribe();
+            if (attendanceUnsubscribe) attendanceUnsubscribe();
             const today = new Date().toISOString().split('T')[0];
-            
+
             let q;
+            // In event-wide scanning mode, listen to all of the teacher's attendance for the day, regardless of event.
             if (isEventWide) {
                 q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
-                    where("eventId", "==", currentEventId),
                     where("teacherId", "==", currentUser.uid),
                     where("date", "==", today)
                 );
             } else {
-                // This case is not used with the new UI, but kept for potential future use
+                // This mode is for a specific class view, which isn't currently used but kept for future-proofing.
                 q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
                     where("classId", "==", currentClassId),
                     where("eventId", "==", currentEventId),
@@ -1651,23 +1652,10 @@
                     where("date", "==", today)
                 );
             }
-            
-             // Pre-fetch all class and student names for the event for performance
-            const eventClasses = new Map();
-            const eventStudents = new Map(); // Map<studentId, { name: string, className: string }>
-            const classesSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`));
-            for(const classDoc of classesSnapshot.docs) {
-                eventClasses.set(classDoc.id, classDoc.data().name);
-                const studentsSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${classDoc.id}/students`));
-                studentsSnapshot.forEach(studentDoc => {
-                    eventStudents.set(studentDoc.id, { name: studentDoc.data().name, className: classDoc.data().name });
-                });
-            }
 
-            attendanceUnsubscribe = onSnapshot(q, (snapshot) => {
+            attendanceUnsubscribe = onSnapshot(q, async (snapshot) => {
                 const logContainer = document.getElementById('attendance-student-list');
-                logContainer.innerHTML = '';
-                
+
                 if (snapshot.empty) {
                     logContainer.innerHTML = `<div class="text-center py-8 text-gray-500">
                                     <p>No scans for this event yet today.</p>
@@ -1676,17 +1664,37 @@
                     return;
                 }
 
-                const records = snapshot.docs.map(doc => doc.data()).sort((a,b) => {
+                const records = snapshot.docs.map(doc => doc.data()).sort((a, b) => {
                     const timeA = (a.time_out || a.time_in).toMillis();
                     const timeB = (b.time_out || b.time_in).toMillis();
                     return timeB - timeA;
                 });
-                
-                records.forEach(record => {
-                    const studentInfo = eventStudents.get(record.studentId);
-                    const studentName = studentInfo ? studentInfo.name : 'Unknown Student';
-                    const className = studentInfo ? studentInfo.className : 'Unknown Class';
 
+                // Use a cache to fetch student/class details on demand without re-querying existing ones.
+                const detailPromises = records.map(record => {
+                    const cacheKey = `${record.eventId}-${record.classId}-${record.studentId}`;
+                    if (detailsCache.has(cacheKey)) {
+                        return Promise.resolve({ record, details: detailsCache.get(cacheKey) });
+                    } else {
+                        const studentDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/events/${record.eventId}/classes/${record.classId}/students/${record.studentId}`);
+                        const classDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/events/${record.eventId}/classes/${record.classId}`);
+                        
+                        return Promise.all([getDoc(studentDocRef), getDoc(classDocRef)])
+                            .then(([studentDoc, classDoc]) => {
+                                const details = {
+                                    studentName: studentDoc.exists() ? studentDoc.data().name : 'Unknown Student',
+                                    className: classDoc.exists() ? classDoc.data().name : 'Unknown Class'
+                                };
+                                detailsCache.set(cacheKey, details);
+                                return { record, details };
+                            });
+                    }
+                });
+
+                const results = await Promise.all(detailPromises);
+                
+                logContainer.innerHTML = '';
+                results.forEach(({ record, details }) => {
                     let status, statusColor, statusText, time;
                     if (record.time_in && !record.time_out) {
                         status = 'IN'; statusColor = 'bg-green-100 text-green-800'; time = record.time_in;
@@ -1701,8 +1709,8 @@
                     logItem.innerHTML = `
                         <div class="flex items-center justify-between">
                             <div>
-                               <p class="font-semibold text-gray-800">${studentName}</p>
-                               <p class="text-sm text-gray-500">Class: ${className}</p>
+                               <p class="font-semibold text-gray-800">${details.studentName}</p>
+                               <p class="text-sm text-gray-500">Class: ${details.className}</p>
                             </div>
                             <div class="text-right">
                                <span class="px-2 py-1 text-xs font-bold rounded-full ${statusColor}">${status}</span>
