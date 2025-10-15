@@ -60,7 +60,7 @@
         <!-- Header -->
         <header id="app-header" class="bg-white p-4 flex justify-between items-center hidden shadow-md sticky top-0 z-30">
             <div class="flex items-center space-x-3">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                 <h1 class="text-2xl font-bold text-gray-800">Attendance Tracker</h1>
             </div>
             <div id="user-info" class="flex items-center space-x-4">
@@ -150,7 +150,7 @@
                             <p id="event-detail-date" class="text-lg text-gray-600 mt-1"></p>
                         </div>
                         <div class="flex items-center gap-2 self-start md:self-center flex-wrap">
-                             <button id="start-event-attendance-btn" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white focus:ring-green-500 flex items-center">
+                            <button id="start-event-attendance-btn" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white focus:ring-green-500 flex items-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                                 Take Attendance
                             </button>
@@ -162,11 +162,28 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-2 hidden sm:block"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                 Create Class
                             </button>
+                             <label for="class-csv-input" class="cursor-pointer font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-teal-600 hover:bg-teal-700 text-white focus:ring-teal-500 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                Import Classes
+                            </label>
+                            <input type="file" id="class-csv-input" class="hidden" accept=".csv">
+                            <button id="download-class-csv-template" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-gray-600 hover:bg-gray-700 text-white focus:ring-gray-500 flex items-center">
+                               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Template
+                            </button>
                         </div>
                     </div>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <h3 class="text-2xl font-bold mb-4">Classes for this Event</h3>
+                    <!-- New Tabs Container -->
+                    <div id="class-tabs" class="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-4">
+                        <!-- Tabs will be dynamically inserted here -->
+                    </div>
+                    <!-- Container for tab-specific actions like exporting -->
+                    <div id="class-tab-actions" class="mt-4 mb-4 flex justify-end">
+                        <!-- Export button will be injected here -->
+                    </div>
                     <div id="class-list-for-event" class="divide-y divide-gray-100"></div>
                     <p id="no-classes-for-event-message" class="hidden text-center py-8 text-gray-500">No classes created for this event yet.</p>
                 </div>
@@ -906,6 +923,60 @@
             loadAttendanceView(true); // event-wide mode
         });
 
+        document.getElementById('download-class-csv-template').addEventListener('click', () => {
+            const csvContent = "ClassName,SectionDetails\nComputer Science 101,Room 3A\nWorkshop A,Main Hall";
+            const link = document.createElement("a");
+            link.href = 'data:text/csv;charset=utf-8,' + encodeURI(csvContent);
+            link.download = "class-import-template.csv";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        document.getElementById('class-csv-input').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file || !currentEventId) return;
+            showLoading();
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async (results) => {
+                    if (!results.meta.fields.includes('ClassName')) {
+                        showToast("CSV must have a 'ClassName' column.", true);
+                        hideLoading();
+                        event.target.value = ''; // Reset file input
+                        return;
+                    }
+                    try {
+                        const promises = [];
+                        for (const row of results.data) {
+                            const className = row['ClassName']?.trim();
+                            const sectionDetails = row['SectionDetails']?.trim() || ''; // Section is optional
+                            if (className) {
+                                const promise = addDoc(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`), {
+                                    name: className,
+                                    section: sectionDetails,
+                                });
+                                promises.push(promise);
+                            }
+                        }
+                        await Promise.all(promises);
+                        if (promises.length > 0) {
+                            showToast(`${promises.length} classes imported successfully.`);
+                        } else {
+                             showToast("No valid classes found in file to import.", true);
+                        }
+                    } catch (err) {
+                        console.error("Error importing classes: ", err);
+                        showToast("An error occurred during import.", true);
+                    } finally {
+                        hideLoading();
+                        event.target.value = ''; // Reset file input
+                    }
+                }
+            });
+        });
+
 
         document.getElementById('create-class-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -962,52 +1033,145 @@
         function loadClassesForEvent() {
             if (classUnsubscribe) classUnsubscribe();
             const q = query(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`));
+            
             classUnsubscribe = onSnapshot(q, (snapshot) => {
-                const classList = document.getElementById('class-list-for-event');
-                classList.innerHTML = '';
-                document.getElementById('no-classes-for-event-message').classList.toggle('hidden', !snapshot.empty);
-                
-                snapshot.docs.sort((a,b)=>a.data().name.localeCompare(b.data().name)).forEach(doc => {
-                    const classData = doc.data();
-                    const classId = doc.id;
-                    const item = document.createElement('div');
-                    item.className = "flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-2";
-                    item.innerHTML = `
-                        <div class="flex-grow">
-                            <p class="font-semibold text-gray-800">${classData.name}</p>
-                            <p class="text-sm text-gray-500">${classData.section || ''}</p>
-                            <p class="text-sm text-gray-600 mt-1">
-                                <span class="font-medium">Attendance Today:</span> 
-                                <span id="attendance-${classId}" class="text-blue-600 font-semibold">Loading...</span>
-                            </p>
-                        </div>
-                        <div class="flex items-center gap-2 self-end sm:self-center flex-wrap">
-                           <button data-class-id="${classId}" data-class-name="${classData.name}" class="manage-students-btn font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 text-xs">Manage Students</button>
-                           <button data-class-id="${classId}" data-class-name="${classData.name}" class="delete-class-btn p-2 rounded-md hover:bg-red-100 text-red-500 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                           </button>
-                        </div>`;
-                    classList.appendChild(item);
+                const classListContainer = document.getElementById('class-list-for-event');
+                const tabsContainer = document.getElementById('class-tabs');
+                const noClassesMsg = document.getElementById('no-classes-for-event-message');
 
-                    // Load attendance stats asynchronously
-                    (async () => {
-                        const stats = await getClassAttendanceStats(classId);
-                        const attendanceEl = document.getElementById(`attendance-${classId}`);
-                        if (attendanceEl) {
-                            attendanceEl.textContent = `${stats.timedIn} / ${stats.total}`;
-                            // Add color coding based on attendance
-                            if (stats.total === 0) {
-                                attendanceEl.className = 'text-gray-500 font-semibold';
-                            } else if (stats.timedIn === stats.total) {
-                                attendanceEl.className = 'text-green-600 font-semibold';
-                            } else if (stats.timedIn > 0) {
-                                attendanceEl.className = 'text-blue-600 font-semibold';
-                            } else {
-                                attendanceEl.className = 'text-red-600 font-semibold';
-                            }
-                        }
-                    })();
+                // Clear everything on update
+                classListContainer.innerHTML = '';
+                tabsContainer.innerHTML = '';
+                noClassesMsg.classList.toggle('hidden', !snapshot.empty);
+
+                if (snapshot.empty) {
+                     document.getElementById('class-tab-actions').innerHTML = ''; // Clear actions if no classes
+                    return;
+                }
+
+                // --- Data Grouping ---
+                const allDocs = snapshot.docs.sort((a, b) => a.data().name.localeCompare(b.data().name));
+                const classesBySection = { 'All': allDocs };
+
+                allDocs.forEach(doc => {
+                    const classData = doc.data();
+                    const section = classData.section?.trim() || 'Uncategorized';
+                    if (!classesBySection[section]) {
+                        classesBySection[section] = [];
+                    }
+                    classesBySection[section].push(doc);
                 });
+                
+                // --- Tab Rendering ---
+                const sections = Object.keys(classesBySection).sort((a, b) => {
+                    if (a === 'All') return -1;
+                    if (b === 'All') return 1;
+                    if (a === 'Uncategorized' && b !== 'All') return 1; // Uncategorized at the end
+                    if (b === 'Uncategorized' && a !== 'All') return -1;
+                    return a.localeCompare(b);
+                });
+
+                sections.forEach(section => {
+                    const tabBtn = document.createElement('button');
+                    tabBtn.className = 'px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1';
+                    tabBtn.textContent = `${section} (${classesBySection[section].length})`;
+                    tabBtn.dataset.section = section;
+                    tabsContainer.appendChild(tabBtn);
+                });
+
+                // --- Function to render the list for the active tab ---
+                const renderListForSection = (targetSection) => {
+                    // Update active tab style
+                    tabsContainer.querySelectorAll('button').forEach(btn => {
+                        if (btn.dataset.section === targetSection) {
+                            btn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+                            btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+                        } else {
+                            btn.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+                            btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+                        }
+                    });
+                    
+                    // --- Render Export Button for the current tab ---
+                    const actionsContainer = document.getElementById('class-tab-actions');
+                    actionsContainer.innerHTML = ''; // Clear previous button
+                    const docsToExport = classesBySection[targetSection];
+                    if (docsToExport && docsToExport.length > 0) {
+                        const exportBtn = document.createElement('button');
+                        exportBtn.className = 'font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-orange-600 hover:bg-orange-700 text-white focus:ring-orange-500 flex items-center text-sm';
+                        exportBtn.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            Export PDF for '${targetSection}'
+                        `;
+                        actionsContainer.appendChild(exportBtn);
+                        exportBtn.addEventListener('click', () => exportClassesAttendance(docsToExport, targetSection));
+                    }
+
+
+                    // Render the class list
+                    classListContainer.innerHTML = '';
+                    const docsToRender = classesBySection[targetSection];
+
+                    if (!docsToRender || docsToRender.length === 0) {
+                        classListContainer.innerHTML = `<p class="text-center py-8 text-gray-500">No classes found in this section.</p>`;
+                        return;
+                    }
+
+                    docsToRender.forEach(doc => {
+                        const classData = doc.data();
+                        const classId = doc.id;
+                        const item = document.createElement('div');
+                        item.className = "flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-2";
+                        item.innerHTML = `
+                            <div class="flex-grow">
+                                <p class="font-semibold text-gray-800">${classData.name}</p>
+                                <p class="text-sm text-gray-500">${classData.section || 'No section details'}</p>
+                                <p class="text-sm text-gray-600 mt-1">
+                                    <span class="font-medium">Attendance Today:</span> 
+                                    <span id="attendance-${classId}" class="text-blue-600 font-semibold">Loading...</span>
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2 self-end sm:self-center flex-wrap">
+                               <button data-class-id="${classId}" data-class-name="${classData.name}" class="manage-students-btn font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 text-xs">Manage Students</button>
+                               <button data-class-id="${classId}" data-class-name="${classData.name}" class="delete-class-btn p-2 rounded-md hover:bg-red-100 text-red-500 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                               </button>
+                            </div>`;
+                        classListContainer.appendChild(item);
+
+                        (async () => {
+                            const stats = await getClassAttendanceStats(classId);
+                            const attendanceEl = document.getElementById(`attendance-${classId}`);
+                            if (attendanceEl) {
+                                attendanceEl.textContent = `${stats.timedIn} / ${stats.total}`;
+                                if (stats.total === 0) {
+                                    attendanceEl.className = 'text-gray-500 font-semibold';
+                                } else if (stats.timedIn === stats.total && stats.total > 0) {
+                                    attendanceEl.className = 'text-green-600 font-semibold';
+                                } else if (stats.timedIn > 0) {
+                                    attendanceEl.className = 'text-blue-600 font-semibold';
+                                } else {
+                                    attendanceEl.className = 'text-red-600 font-semibold';
+                                }
+                            }
+                        })();
+                    });
+                };
+
+                // Add single click listener to tabs container (event delegation)
+                tabsContainer.addEventListener('click', (e) => {
+                    const button = e.target.closest('button');
+                    if (button) {
+                        const targetSection = button.dataset.section;
+                        renderListForSection(targetSection);
+                    }
+                });
+
+                // Initial render, default to 'All'
+                renderListForSection('All');
+            }, (error) => {
+                console.error("Error loading classes: ", error);
+                showToast("Could not load class data.", true);
             });
         }
         
@@ -1321,6 +1485,85 @@
             }
         });
 
+        async function exportClassesAttendance(classDocs, exportGroupName) {
+            showLoading();
+            showToast(`Generating report for ${exportGroupName}...`);
+            try {
+                const { jsPDF } = window.jspdf;
+                const docPDF = new jsPDF();
+                let hasAnyAttendance = false;
+
+                docPDF.setFontSize(18);
+                docPDF.text(`Attendance Report`, 14, 20);
+                docPDF.setFontSize(12);
+                docPDF.text(`Event: ${currentEventName}`, 14, 28);
+                docPDF.text(`Group: ${exportGroupName}`, 14, 35);
+                let finalY = 35; // Position after the main title
+
+                for (const classDoc of classDocs) {
+                    const classData = classDoc.data();
+                    const students = {};
+                    const studentSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${classDoc.id}/students`));
+                    studentSnapshot.forEach(doc => students[doc.data().studentId] = doc.data().name);
+
+                    const attendanceQuery = query(
+                        collection(db, `artifacts/${appId}/public/data/attendance`),
+                        where("eventId", "==", currentEventId),
+                        where("classId", "==", classDoc.id),
+                        where("teacherId", "==", currentUser.uid)
+                    );
+                    const attendanceSnapshot = await getDocs(attendanceQuery);
+
+                    if (!attendanceSnapshot.empty) {
+                        const reportData = attendanceSnapshot.docs
+                            .map(doc => doc.data())
+                            .filter(r => r.time_in)
+                            .sort((a, b) => (students[a.studentId] || 'Z').localeCompare(students[b.studentId] || 'Z'))
+                            .map(r => [
+                                r.studentId,
+                                students[r.studentId] || 'Unknown',
+                                formatDate(r.time_in),
+                                r.time_in.toDate().toLocaleTimeString(),
+                                r.time_out ? r.time_out.toDate().toLocaleTimeString() : 'N/A'
+                            ]);
+
+                        if (reportData.length > 0) {
+                            hasAnyAttendance = true;
+                            
+                            // Add a gap if this isn't the first table
+                            const tableStartY = (finalY > 35) ? finalY + 15 : 45;
+
+                             if (tableStartY + 30 > docPDF.internal.pageSize.height) { // Estimate space needed
+                                docPDF.addPage();
+                                finalY = 20; 
+                            }
+
+                            docPDF.setFontSize(14);
+                            docPDF.text(`Class: ${classData.name}`, 14, tableStartY - 7);
+                            
+                            docPDF.autoTable({
+                                head: [['Student ID', 'Name', 'Date', 'Time In', 'Time Out']],
+                                body: reportData,
+                                startY: tableStartY
+                            });
+                            finalY = docPDF.autoTable.previous.finalY;
+                        }
+                    }
+                }
+
+                if (!hasAnyAttendance) {
+                    showToast(`No attendance records found for '${exportGroupName}'.`, true);
+                    return;
+                }
+                docPDF.save(`attendance_${currentEventName.replace(/ /g, '_')}_${exportGroupName.replace(/ /g, '_')}.pdf`);
+            } catch (error) {
+                console.error("Error exporting class group attendance:", error);
+                showToast("Error generating attendance report.", true);
+            } finally {
+                hideLoading();
+            }
+        }
+
         async function loadAttendanceTable() {
             if (attendanceTableUnsubscribe) attendanceTableUnsubscribe();
 
@@ -1427,9 +1670,9 @@
                 
                 if (snapshot.empty) {
                     logContainer.innerHTML = `<div class="text-center py-8 text-gray-500">
-                        <p>No scans for this event yet today.</p>
-                        <p class="text-sm mt-2">Scan a student's QR code to begin.</p>
-                    </div>`;
+                                    <p>No scans for this event yet today.</p>
+                                    <p class="text-sm mt-2">Scan a student's QR code to begin.</p>
+                                </div>`;
                     return;
                 }
 
@@ -1457,14 +1700,14 @@
                     logItem.className = 'py-3';
                     logItem.innerHTML = `
                         <div class="flex items-center justify-between">
-                             <div>
-                                <p class="font-semibold text-gray-800">${studentName}</p>
-                                <p class="text-sm text-gray-500">Class: ${className}</p>
-                             </div>
-                             <div class="text-right">
-                                <span class="px-2 py-1 text-xs font-bold rounded-full ${statusColor}">${status}</span>
-                                <p class="text-xs text-gray-500 mt-1">${statusText}</p>
-                             </div>
+                            <div>
+                               <p class="font-semibold text-gray-800">${studentName}</p>
+                               <p class="text-sm text-gray-500">Class: ${className}</p>
+                            </div>
+                            <div class="text-right">
+                               <span class="px-2 py-1 text-xs font-bold rounded-full ${statusColor}">${status}</span>
+                               <p class="text-xs text-gray-500 mt-1">${statusText}</p>
+                            </div>
                         </div>`;
                     logContainer.appendChild(logItem);
                 });
@@ -1477,10 +1720,11 @@
             let qrData;
             try { qrData = JSON.parse(decodedText); } catch { showToast("Invalid QR Code.", true); return; }
             
-            if(qrData.eventId !== currentEventId) { 
-                showToast("QR Code is not for this event.", true); 
-                return; 
-            }
+            // Allow scanning for any event
+            // if(qrData.eventId !== currentEventId) { 
+            //     showToast("QR Code is not for this event.", true); 
+            //     return; 
+            // }
 
             const studentDoc = await getDoc(doc(db, `artifacts/${appId}/users/${qrData.teacherId}/events/${qrData.eventId}/classes/${qrData.classId}/students/${qrData.studentId}`));
             if (!studentDoc.exists()) { showToast(`Student not found.`, true); return; }
@@ -1556,3 +1800,4 @@
     </script>
 </body>
 </html>
+
