@@ -15,7 +15,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6; /* A clean light gray from the new UI */
+            background-color: #f3f4f6;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
@@ -32,8 +32,6 @@
             transform: translateY(0) scale(1);
             opacity: 1;
         }
-
-        /* Print styles for QR codes */
         @media print {
             body * { visibility: hidden; }
             #qr-code-view, #qr-code-view * { visibility: visible; }
@@ -173,17 +171,18 @@
                             </button>
                         </div>
                     </div>
+                    
+                    <!-- START: Canvas for Event Stats -->
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                         <canvas id="event-stats-canvas" class="w-full"></canvas>
+                    </div>
+                    <!-- END: Canvas for Event Stats -->
+
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <h3 class="text-2xl font-bold mb-4">Classes for this Event</h3>
-                    <!-- New Tabs Container -->
-                    <div id="class-tabs" class="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-4">
-                        <!-- Tabs will be dynamically inserted here -->
-                    </div>
-                    <!-- Container for tab-specific actions like exporting -->
-                    <div id="class-tab-actions" class="mt-4 mb-4 flex justify-end">
-                        <!-- Export button will be injected here -->
-                    </div>
+                    <div id="class-tabs" class="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-4"></div>
+                    <div id="class-tab-actions" class="mt-4 mb-4 flex justify-end"></div>
                     <div id="class-list-for-event" class="divide-y divide-gray-100"></div>
                     <p id="no-classes-for-event-message" class="hidden text-center py-8 text-gray-500">No classes created for this event yet.</p>
                 </div>
@@ -443,19 +442,21 @@
         let eventUnsubscribe = null;
         let attendanceUnsubscribe = null;
         let attendanceTableUnsubscribe = null;
+        let eventPresentUnsubscribe = null; 
         
         let html5QrCode = null;
         let isScanning = false;
         let lastScanTime = 0;
         let deleteHandler = null;
         const detailsCache = new Map();
+        let currentEventStats = { totalStudents: null, presentToday: null, totalClasses: null };
+
 
         // --- UI Helper Functions ---
         const showView = (viewName) => {
             Object.values(views).forEach(view => view.classList.add('hidden'));
             if (views[viewName]) views[viewName].classList.remove('hidden');
             
-            // Handle scanner state based on view
             if (viewName === 'attendance') startScanner();
             else if (html5QrCode && isScanning) stopScanner();
         };
@@ -478,7 +479,7 @@
             if (modal) {
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
-                 setTimeout(() => { // Delay to allow display:flex to apply before transition
+                 setTimeout(() => { 
                     modal.classList.add('modal-open');
                 }, 10);
             }
@@ -515,12 +516,10 @@
             } else {
                 currentUser = null;
                 appHeader.classList.add('hidden');
-                // Only show login form if there is no custom token to attempt sign-in with
                 if (typeof __initial_auth_token === 'undefined') {
                     showView('login');
                 }
-                // Cleanup listeners on logout
-                [classUnsubscribe, studentUnsubscribe, eventUnsubscribe, attendanceUnsubscribe, attendanceTableUnsubscribe].forEach(unsub => unsub && unsub());
+                [classUnsubscribe, studentUnsubscribe, eventUnsubscribe, attendanceUnsubscribe, attendanceTableUnsubscribe, eventPresentUnsubscribe].forEach(unsub => unsub && unsub());
             }
         });
         
@@ -529,14 +528,13 @@
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    // If no token, the onAuthStateChanged will handle showing the login page
                     hideLoading();
                     showView('login');
                 }
             } catch (error) {
                 console.error("Custom token sign-in failed:", error);
                 hideLoading();
-                showView('login'); // Fallback to manual login
+                showView('login'); 
             }
         }
 
@@ -594,6 +592,7 @@
         // --- Navigation ---
         document.getElementById('back-to-dashboard-from-event-detail').addEventListener('click', () => {
             if (classUnsubscribe) classUnsubscribe();
+            if (eventPresentUnsubscribe) eventPresentUnsubscribe();
             currentEventId = null;
             showView('dashboard');
         });
@@ -632,27 +631,20 @@
         // --- Helper function for recursive deletion ---
         async function deleteEventCompletely(eventId) {
             try {
-                // Get all classes for this event
                 const classesRef = collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${eventId}/classes`);
                 const classesSnapshot = await getDocs(classesRef);
                 
-                // Delete each class and its subcollections
                 for (const classDoc of classesSnapshot.docs) {
                     const classId = classDoc.id;
-                    
-                    // Delete all students in this class
                     const studentsRef = collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${eventId}/classes/${classId}/students`);
                     const studentsSnapshot = await getDocs(studentsRef);
                     
                     for (const studentDoc of studentsSnapshot.docs) {
                         await deleteDoc(studentDoc.ref);
                     }
-                    
-                    // Delete the class document
                     await deleteDoc(classDoc.ref);
                 }
                 
-                // Delete attendance records for this event
                 const attendanceQuery = query(
                     collection(db, `artifacts/${appId}/public/data/attendance`),
                     where("eventId", "==", eventId),
@@ -664,7 +656,6 @@
                     await deleteDoc(attendanceDoc.ref);
                 }
                 
-                // Finally, delete the main event document
                 await deleteDoc(doc(db, `artifacts/${appId}/users/${currentUser.uid}/events`, eventId));
                 
                 return true;
@@ -767,7 +758,6 @@
                 const presentStudentsSet = new Set();
                 attendanceSnapshot.forEach(doc => {
                     const data = doc.data();
-                    // Count students who have time_in (regardless of time_out status)
                     if (data.time_in) {
                          presentStudentsSet.add(data.studentId);
                     }
@@ -855,6 +845,7 @@
                         document.getElementById('event-detail-date').textContent = formatDate(event.date);
                         showView('eventDetail');
                         loadClassesForEvent();
+                        listenForEventPresentCount();
                     });
                     
                     const optionsBtn = card.querySelector('.options-btn');
@@ -945,14 +936,14 @@
                     if (!results.meta.fields.includes('ClassName')) {
                         showToast("CSV must have a 'ClassName' column.", true);
                         hideLoading();
-                        event.target.value = ''; // Reset file input
+                        event.target.value = '';
                         return;
                     }
                     try {
                         const promises = [];
                         for (const row of results.data) {
                             const className = row['ClassName']?.trim();
-                            const sectionDetails = row['SectionDetails']?.trim() || ''; // Section is optional
+                            const sectionDetails = row['SectionDetails']?.trim() || '';
                             if (className) {
                                 const promise = addDoc(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`), {
                                     name: className,
@@ -972,7 +963,7 @@
                         showToast("An error occurred during import.", true);
                     } finally {
                         hideLoading();
-                        event.target.value = ''; // Reset file input
+                        event.target.value = ''; 
                     }
                 }
             });
@@ -996,12 +987,10 @@
 
         async function getClassAttendanceStats(classId) {
             try {
-                // Get total students in this class
                 const studentsRef = collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${classId}/students`);
                 const studentsSnapshot = await getDocs(studentsRef);
                 const totalStudents = studentsSnapshot.size;
 
-                // Get students who timed in today
                 const today = new Date().toISOString().split('T')[0];
                 const attendanceQuery = query(
                     collection(db, `artifacts/${appId}/public/data/attendance`),
@@ -1012,7 +1001,6 @@
                 );
                 const attendanceSnapshot = await getDocs(attendanceQuery);
                 
-                // Count unique students with time_in
                 const timedInStudents = new Set();
                 attendanceSnapshot.forEach(doc => {
                     const data = doc.data();
@@ -1039,18 +1027,38 @@
                 const classListContainer = document.getElementById('class-list-for-event');
                 const tabsContainer = document.getElementById('class-tabs');
                 const noClassesMsg = document.getElementById('no-classes-for-event-message');
+                
+                currentEventStats.totalClasses = snapshot.size;
+                if (snapshot.empty) {
+                    currentEventStats.totalStudents = 0;
+                    drawEventStatsOnCanvas(currentEventStats);
+                } else {
+                    currentEventStats.totalStudents = null; 
+                    drawEventStatsOnCanvas(currentEventStats);
+                    const studentCountPromises = snapshot.docs.map(classDoc => {
+                        const studentsRef = collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${classDoc.id}/students`);
+                        return getDocs(studentsRef).then(studentsSnapshot => studentsSnapshot.size);
+                    });
 
-                // Clear everything on update
+                    Promise.all(studentCountPromises).then(counts => {
+                        currentEventStats.totalStudents = counts.reduce((sum, count) => sum + count, 0);
+                        drawEventStatsOnCanvas(currentEventStats);
+                    }).catch(err => {
+                        console.error("Error getting total student count:", err);
+                        currentEventStats.totalStudents = 'Err';
+                        drawEventStatsOnCanvas(currentEventStats);
+                    });
+                }
+
                 classListContainer.innerHTML = '';
                 tabsContainer.innerHTML = '';
                 noClassesMsg.classList.toggle('hidden', !snapshot.empty);
 
                 if (snapshot.empty) {
-                     document.getElementById('class-tab-actions').innerHTML = ''; // Clear actions if no classes
+                    document.getElementById('class-tab-actions').innerHTML = '';
                     return;
                 }
 
-                // --- Data Grouping ---
                 const allDocs = snapshot.docs.sort((a, b) => a.data().name.localeCompare(b.data().name));
                 const classesBySection = { 'All': allDocs };
 
@@ -1063,11 +1071,10 @@
                     classesBySection[section].push(doc);
                 });
                 
-                // --- Tab Rendering ---
                 const sections = Object.keys(classesBySection).sort((a, b) => {
                     if (a === 'All') return -1;
                     if (b === 'All') return 1;
-                    if (a === 'Uncategorized' && b !== 'All') return 1; // Uncategorized at the end
+                    if (a === 'Uncategorized' && b !== 'All') return 1;
                     if (b === 'Uncategorized' && a !== 'All') return -1;
                     return a.localeCompare(b);
                 });
@@ -1080,9 +1087,7 @@
                     tabsContainer.appendChild(tabBtn);
                 });
 
-                // --- Function to render the list for the active tab ---
                 const renderListForSection = (targetSection) => {
-                    // Update active tab style
                     tabsContainer.querySelectorAll('button').forEach(btn => {
                         if (btn.dataset.section === targetSection) {
                             btn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
@@ -1093,9 +1098,8 @@
                         }
                     });
                     
-                    // --- Render Export Button for the current tab ---
                     const actionsContainer = document.getElementById('class-tab-actions');
-                    actionsContainer.innerHTML = ''; // Clear previous button
+                    actionsContainer.innerHTML = '';
                     const docsToExport = classesBySection[targetSection];
                     if (docsToExport && docsToExport.length > 0) {
                         const exportBtn = document.createElement('button');
@@ -1109,7 +1113,6 @@
                     }
 
 
-                    // Render the class list
                     classListContainer.innerHTML = '';
                     const docsToRender = classesBySection[targetSection];
 
@@ -1159,7 +1162,6 @@
                     });
                 };
 
-                // Add single click listener to tabs container (event delegation)
                 tabsContainer.addEventListener('click', (e) => {
                     const button = e.target.closest('button');
                     if (button) {
@@ -1168,7 +1170,6 @@
                     }
                 });
 
-                // Initial render, default to 'All'
                 renderListForSection('All');
             }, (error) => {
                 console.error("Error loading classes: ", error);
@@ -1317,7 +1318,7 @@
                     const qrDiv = document.createElement('div');
                     tempContainer.appendChild(qrDiv);
                     new QRCode(qrDiv, { text: JSON.stringify({ studentId: student.studentId, teacherId: currentUser.uid }), width: 256, height: 256 });
-                    await new Promise(r => setTimeout(r, 50)); // Allow QR code to render
+                    await new Promise(r => setTimeout(r, 50)); 
                     
                     const img = qrDiv.querySelector('img');
                     if (!img) continue;
@@ -1366,11 +1367,51 @@
             link.click();
         });
 
+        // --- PDF Export Logic ---
+
+        const pdfHeaderFooter = (doc, title, subtitle) => {
+            const pageCount = doc.internal.getNumberOfPages();
+            const pageWidth = doc.internal.pageSize.width;
+            const pageHeight = doc.internal.pageSize.height;
+
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                
+                // Header
+                doc.setFontSize(16);
+                doc.setTextColor(44, 62, 80); // #2c3e50
+                doc.text(title, 14, 22);
+                
+                doc.setFontSize(10);
+                doc.setTextColor(127, 140, 141); // #7f8c8d
+                const dateStr = `Generated: ${new Date().toLocaleDateString("en-US")} ${new Date().toLocaleTimeString("en-US")}`;
+                doc.text(dateStr, pageWidth - 14, 22, { align: 'right' });
+                
+                // Line
+                doc.setDrawColor(236, 240, 241); // #ecf0f1
+                doc.line(14, 28, pageWidth - 14, 28);
+                
+                // Footer
+                doc.setFontSize(8);
+                doc.setTextColor(149, 165, 166); // #95a5a6
+                doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+                doc.text("Attendance Tracker", 14, pageHeight - 10);
+            }
+        };
+
+        const pdfTableStyles = {
+            headStyles: { fillColor: [44, 62, 80], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            startY: 55,
+            margin: { top: 40 }
+        };
+
         document.getElementById('export-event-attendance').addEventListener('click', async () => {
             showLoading();
             try {
                 const students = {};
                 const studentSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+                const totalInClass = studentSnapshot.size;
                 studentSnapshot.forEach(doc => students[doc.data().studentId] = doc.data().name);
 
                 const attendanceQuery = query(collection(db, `artifacts/${appId}/public/data/attendance`), where("eventId", "==", currentEventId), where("classId", "==", currentClassId), where("teacherId", "==", currentUser.uid));
@@ -1378,15 +1419,37 @@
 
                 if (attendanceSnapshot.empty) { showToast('No attendance records to export.', true); return; }
 
+                let presentCount = 0;
                 const reportData = attendanceSnapshot.docs
-                    .map(doc => doc.data()).filter(r => r.time_in)
+                    .map(doc => doc.data()).filter(r => {
+                        if(r.time_in) {
+                            presentCount++;
+                            return true;
+                        }
+                        return false;
+                    })
                     .sort((a,b) => (students[a.studentId] || '').localeCompare(students[b.studentId] || ''))
                     .map(r => [ r.studentId, students[r.studentId] || 'Unknown', formatDate(r.time_in), r.time_in.toDate().toLocaleTimeString(), r.time_out ? r.time_out.toDate().toLocaleTimeString() : 'N/A' ]);
 
                 const { jsPDF } = window.jspdf;
                 const docPDF = new jsPDF();
-                docPDF.text(`Attendance: ${currentEventName} - ${currentClassName}`, 14, 20);
-                docPDF.autoTable({ head: [['ID', 'Name', 'Date', 'In', 'Out']], body: reportData, startY: 30 });
+                
+                docPDF.setFontSize(12);
+                docPDF.setTextColor(44, 62, 80);
+                docPDF.text(`Event: ${currentEventName}`, 14, 40);
+                docPDF.text(`Class: ${currentClassName}`, 14, 46);
+
+                docPDF.setFontSize(10);
+                docPDF.text(`Summary: ${presentCount} / ${totalInClass} students present.`, 14, 52);
+
+                docPDF.autoTable({
+                    head: [['ID', 'Name', 'Date', 'Time In', 'Time Out']],
+                    body: reportData,
+                    ...pdfTableStyles
+                });
+
+                pdfHeaderFooter(docPDF, 'Attendance Report');
+
                 docPDF.save(`attendance-${currentEventName.replace(/ /g,'_')}-${currentClassName.replace(/ /g,'_')}.pdf`);
             } finally {
                 hideLoading();
@@ -1403,7 +1466,6 @@
                 const zip = new JSZip();
                 const folder = zip.folder("attendance-reports");
                 
-                // Get all classes for this event
                 const classesSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`));
                 
                 if (classesSnapshot.empty) {
@@ -1418,12 +1480,11 @@
                     const classId = classDoc.id;
                     const className = classData.name;
 
-                    // Get students for this class
                     const students = {};
                     const studentSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${classId}/students`));
+                    const totalInClass = studentSnapshot.size;
                     studentSnapshot.forEach(doc => students[doc.data().studentId] = doc.data().name);
 
-                    // Get attendance for this class
                     const attendanceQuery = query(
                         collection(db, `artifacts/${appId}/public/data/attendance`),
                         where("eventId", "==", currentEventId),
@@ -1433,11 +1494,13 @@
                     const attendanceSnapshot = await getDocs(attendanceQuery);
 
                     if (!attendanceSnapshot.empty) {
-                        hasAttendance = true;
-
+                        let presentCount = 0;
                         const reportData = attendanceSnapshot.docs
                             .map(doc => doc.data())
-                            .filter(r => r.time_in)
+                            .filter(r => {
+                                if(r.time_in) { presentCount++; return true; }
+                                return false;
+                            })
                             .sort((a,b) => (students[a.studentId] || '').localeCompare(students[b.studentId] || ''))
                             .map(r => [
                                 r.studentId,
@@ -1447,21 +1510,28 @@
                                 r.time_out ? r.time_out.toDate().toLocaleTimeString() : 'N/A'
                             ]);
 
-                        // Create PDF for this class
-                        const docPDF = new jsPDF();
-                        docPDF.text(`Attendance Report`, 14, 15);
-                        docPDF.setFontSize(12);
-                        docPDF.text(`Event: ${currentEventName}`, 14, 25);
-                        docPDF.text(`Class: ${className}`, 14, 32);
-                        docPDF.autoTable({
-                            head: [['Student ID', 'Name', 'Date', 'Time In', 'Time Out']],
-                            body: reportData,
-                            startY: 40
-                        });
+                        if(reportData.length > 0) {
+                            hasAttendance = true;
+                            const docPDF = new jsPDF();
 
-                        // Add PDF to ZIP
-                        const pdfBlob = docPDF.output('blob');
-                        folder.file(`${className.replace(/ /g, '_')}_attendance.pdf`, pdfBlob);
+                            docPDF.setFontSize(12);
+                            docPDF.setTextColor(44, 62, 80);
+                            docPDF.text(`Event: ${currentEventName}`, 14, 40);
+                            docPDF.text(`Class: ${className}`, 14, 46);
+
+                            docPDF.setFontSize(10);
+                            docPDF.text(`Summary: ${presentCount} / ${totalInClass} students present.`, 14, 52);
+
+                            docPDF.autoTable({
+                                head: [['Student ID', 'Name', 'Date', 'Time In', 'Time Out']],
+                                body: reportData,
+                                ...pdfTableStyles
+                            });
+
+                            pdfHeaderFooter(docPDF, 'Attendance Report');
+                            const pdfBlob = docPDF.output('blob');
+                            folder.file(`${className.replace(/ /g, '_')}_attendance.pdf`, pdfBlob);
+                        }
                     }
                 }
 
@@ -1470,7 +1540,6 @@
                     return;
                 }
 
-                // Generate and download ZIP
                 const content = await zip.generateAsync({ type: "blob" });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(content);
@@ -1493,18 +1562,18 @@
                 const { jsPDF } = window.jspdf;
                 const docPDF = new jsPDF();
                 let hasAnyAttendance = false;
+                let finalY = 60;
 
-                docPDF.setFontSize(18);
-                docPDF.text(`Attendance Report`, 14, 20);
                 docPDF.setFontSize(12);
-                docPDF.text(`Event: ${currentEventName}`, 14, 28);
-                docPDF.text(`Group: ${exportGroupName}`, 14, 35);
-                let finalY = 35; // Position after the main title
+                docPDF.setTextColor(44, 62, 80);
+                docPDF.text(`Event: ${currentEventName}`, 14, 40);
+                docPDF.text(`Class Group: ${exportGroupName}`, 14, 46);
 
                 for (const classDoc of classDocs) {
                     const classData = classDoc.data();
                     const students = {};
                     const studentSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${classDoc.id}/students`));
+                    const totalInClass = studentSnapshot.size;
                     studentSnapshot.forEach(doc => students[doc.data().studentId] = doc.data().name);
 
                     const attendanceQuery = query(
@@ -1516,9 +1585,13 @@
                     const attendanceSnapshot = await getDocs(attendanceQuery);
 
                     if (!attendanceSnapshot.empty) {
+                        let presentCount = 0;
                         const reportData = attendanceSnapshot.docs
                             .map(doc => doc.data())
-                            .filter(r => r.time_in)
+                            .filter(r => {
+                                if(r.time_in) { presentCount++; return true; }
+                                return false;
+                            })
                             .sort((a, b) => (students[a.studentId] || 'Z').localeCompare(students[b.studentId] || 'Z'))
                             .map(r => [
                                 r.studentId,
@@ -1531,21 +1604,21 @@
                         if (reportData.length > 0) {
                             hasAnyAttendance = true;
                             
-                            // Add a gap if this isn't the first table
-                            const tableStartY = (finalY > 35) ? finalY + 15 : 45;
-
-                             if (tableStartY + 30 > docPDF.internal.pageSize.height) { // Estimate space needed
-                                docPDF.addPage();
-                                finalY = 20; 
-                            }
-
-                            docPDF.setFontSize(14);
-                            docPDF.text(`Class: ${classData.name}`, 14, tableStartY - 7);
+                            const tableStartY = finalY + 15;
                             
+                            docPDF.setFontSize(11);
+                            docPDF.setTextColor(44, 62, 80);
+                            docPDF.text(`Class: ${classData.name}`, 14, tableStartY - 6);
+                            docPDF.setFontSize(9);
+                            docPDF.text(`Summary: ${presentCount} / ${totalInClass} present`, 150, tableStartY - 6, { align: 'right' });
+
+
                             docPDF.autoTable({
                                 head: [['Student ID', 'Name', 'Date', 'Time In', 'Time Out']],
                                 body: reportData,
-                                startY: tableStartY
+                                startY: tableStartY,
+                                ...pdfTableStyles,
+                                margin: { top: 40 } // Override startY from styles
                             });
                             finalY = docPDF.autoTable.previous.finalY;
                         }
@@ -1556,6 +1629,8 @@
                     showToast(`No attendance records found for '${exportGroupName}'.`, true);
                     return;
                 }
+
+                pdfHeaderFooter(docPDF, 'Attendance Report');
                 docPDF.save(`attendance_${currentEventName.replace(/ /g, '_')}_${exportGroupName.replace(/ /g, '_')}.pdf`);
             } catch (error) {
                 console.error("Error exporting class group attendance:", error);
@@ -1583,7 +1658,6 @@
 
                 if (snapshot.empty) return;
                 
-                // Load fresh student data for each update to ensure consistency
                 const students = new Map();
                 try {
                     const studentSnapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
@@ -1637,10 +1711,10 @@
             const today = new Date().toISOString().split('T')[0];
 
             let q;
-            // In event-wide scanning mode, listen to all of the teacher's attendance for the day, regardless of event.
             if (isEventWide) {
+                // Query by event to see all scans for the current event today
                 q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
-                    where("teacherId", "==", currentUser.uid),
+                    where("eventId", "==", currentEventId),
                     where("date", "==", today)
                 );
             } else {
@@ -1658,9 +1732,9 @@
 
                 if (snapshot.empty) {
                     logContainer.innerHTML = `<div class="text-center py-8 text-gray-500">
-                                    <p>No scans for this event yet today.</p>
-                                    <p class="text-sm mt-2">Scan a student's QR code to begin.</p>
-                                </div>`;
+                                            <p>No scans for this event yet today.</p>
+                                            <p class="text-sm mt-2">Scan a student's QR code to begin.</p>
+                                        </div>`;
                     return;
                 }
 
@@ -1670,14 +1744,14 @@
                     return timeB - timeA;
                 });
 
-                // Use a cache to fetch student/class details on demand without re-querying existing ones.
                 const detailPromises = records.map(record => {
-                    const cacheKey = `${record.eventId}-${record.classId}-${record.studentId}`;
+                    const cacheKey = `${record.originalTeacherId || record.teacherId}-${record.classId}-${record.studentId}`;
                     if (detailsCache.has(cacheKey)) {
                         return Promise.resolve({ record, details: detailsCache.get(cacheKey) });
                     } else {
-                        const studentDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/events/${record.eventId}/classes/${record.classId}/students/${record.studentId}`);
-                        const classDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/events/${record.eventId}/classes/${record.classId}`);
+                        const studentOwnerId = record.originalTeacherId || record.teacherId; 
+                        const studentDocRef = doc(db, `artifacts/${appId}/users/${studentOwnerId}/events/${record.eventId}/classes/${record.classId}/students/${record.studentId}`);
+                        const classDocRef = doc(db, `artifacts/${appId}/users/${studentOwnerId}/events/${record.eventId}/classes/${record.classId}`);
                         
                         return Promise.all([getDoc(studentDocRef), getDoc(classDocRef)])
                             .then(([studentDoc, classDoc]) => {
@@ -1726,7 +1800,12 @@
             if (Date.now() - lastScanTime < 3000) return; // Debounce scans
             lastScanTime = Date.now();
             let qrData;
-            try { qrData = JSON.parse(decodedText); } catch { showToast("Invalid QR Code.", true); return; }
+            try { 
+                qrData = JSON.parse(decodedText); 
+            } catch { 
+                showToast("Invalid QR Code.", true); 
+                return; 
+            }
 
             // 1. Basic validation of QR code data
             if (!qrData.studentId || !qrData.teacherId) {
@@ -1734,29 +1813,23 @@
                 return;
             }
 
-            // 2. Security check: Is this QR code for a student managed by the current teacher?
-            if (qrData.teacherId !== currentUser.uid) {
-                showToast("This QR code belongs to another teacher's student.", true);
-                return;
-            }
-
             try {
-                // 3. Find the student across all classes in the *current event*
-                const classesRef = collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes`);
+                // 2. Find the student under their ORIGINAL teacher's data for the current event.
+                const classesRef = collection(db, `artifacts/${appId}/users/${qrData.teacherId}/events/${currentEventId}/classes`);
                 const classesSnapshot = await getDocs(classesRef);
                 
                 let foundStudent = null;
                 
                 for (const classDoc of classesSnapshot.docs) {
-                    const studentDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${classDoc.id}/students/${qrData.studentId}`);
+                    const studentDocRef = doc(db, `artifacts/${appId}/users/${qrData.teacherId}/events/${currentEventId}/classes/${classDoc.id}/students/${qrData.studentId}`);
                     const studentDocSnap = await getDoc(studentDocRef);
 
                     if (studentDocSnap.exists()) {
                         foundStudent = {
                             ...studentDocSnap.data(),
-                            classId: classDoc.id, // Add the classId to the found student object
+                            classId: classDoc.id,
                         };
-                        break; // Stop searching once the student is found
+                        break;
                     }
                 }
 
@@ -1765,9 +1838,10 @@
                     return;
                 }
                 
-                // 4. We found the student. Now proceed with attendance logic.
+                // 3. We found the student. Now record attendance under the SCANNING teacher (currentUser).
                 const { studentId, name: studentName, classId } = foundStudent;
-                const eventId = currentEventId; // Use the current event context
+                const eventId = currentEventId;
+                const originalTeacherId = qrData.teacherId;
                 
                 const today = new Date().toISOString().split('T')[0];
                 const attendanceId = `${classId}-${studentId}-${eventId}-${today}`;
@@ -1775,16 +1849,26 @@
                 
                 const scanMode = document.getElementById('scan-mode').value;
                 const attendanceSnap = await getDoc(attendanceRef);
+                const scanningTeacherId = currentUser.uid;
+
+                const attendanceData = { 
+                    teacherId: scanningTeacherId, 
+                    originalTeacherId: originalTeacherId,
+                    eventId, 
+                    classId, 
+                    studentId, 
+                    date: today 
+                };
 
                 if (scanMode === 'time_in') {
-                    await setDoc(attendanceRef, { teacherId: currentUser.uid, eventId, classId, studentId, time_in: serverTimestamp(), time_out: null, date: today }, { merge: true });
+                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null }, { merge: true });
                     showToast(`${studentName} forced IN.`);
                     return;
                 }
                 
                 if (scanMode === 'time_out') {
                     if (attendanceSnap.exists() && attendanceSnap.data().time_in) {
-                        await updateDoc(attendanceRef, { time_out: serverTimestamp() });
+                        await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
                         showToast(`${studentName} forced OUT.`);
                     } else {
                         showToast(`${studentName} must sign IN first.`, true);
@@ -1794,18 +1878,20 @@
 
                 // Automatic Mode
                 if (!attendanceSnap.exists() || !attendanceSnap.data().time_in) {
-                    await setDoc(attendanceRef, { teacherId: currentUser.uid, eventId, classId, studentId, time_in: serverTimestamp(), time_out: null, date: today });
+                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
                     showToast(`${studentName} signed IN.`);
                 } else if (attendanceSnap.data().time_in && !attendanceSnap.data().time_out) {
-                    await updateDoc(attendanceRef, { time_out: serverTimestamp() });
+                    await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
                     showToast(`${studentName} signed OUT.`);
                 } else {
-                    showToast(`${studentName} already signed in and out.`, true);
+                    // This allows a student who has already signed in and out to re-enter the event.
+                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
+                    showToast(`${studentName} re-entered. New sign IN recorded.`);
                 }
 
             } catch (err) {
                 console.error("Error processing scan: ", err);
-                showToast("An error occurred during scan processing.", true);
+                showToast("An error occurred. The student may not be in this event or there's a permission issue.", true);
             }
         };
 
@@ -1830,7 +1916,97 @@
                 isScanning = false;
             }
         }
+
+        // --- NEW CANVAS DRAWING LOGIC ---
+        function drawEventStatsOnCanvas(stats) {
+            const canvas = document.getElementById('event-stats-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = 110 * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.height = '110px';
+
+            const width = canvas.width / dpr;
+            const height = canvas.height / dpr;
+            
+            const cardCount = 3;
+            const gap = 16;
+            const cardWidth = (width - (gap * (cardCount - 1))) / cardCount;
+            const cardHeight = height;
+            const radius = 8;
+
+            const cards = [
+                { label: "Total Enrolled", value: stats.totalStudents, color: "#9333ea" },
+                { label: "Present Today", value: stats.presentToday, color: "#059669" },
+                { label: "Total Classes", value: stats.totalClasses, color: "#2563eb" }
+            ];
+
+            ctx.clearRect(0, 0, width, height);
+
+            cards.forEach((card, index) => {
+                const x = index * (cardWidth + gap);
+                const y = 0;
+
+                ctx.fillStyle = '#f9fafb'; // bg-gray-50
+                ctx.beginPath();
+                ctx.moveTo(x + radius, y);
+                ctx.lineTo(x + cardWidth - radius, y);
+                ctx.arcTo(x + cardWidth, y, x + cardWidth, y + radius, radius);
+                ctx.lineTo(x + cardWidth, y + cardHeight - radius);
+                ctx.arcTo(x + cardWidth, y + cardHeight, x + cardWidth - radius, y + cardHeight, radius);
+                ctx.lineTo(x + radius, y + cardHeight);
+                ctx.arcTo(x, y + cardHeight, x, y + cardHeight - radius, radius);
+                ctx.lineTo(x, y + radius);
+                ctx.arcTo(x, y, x + radius, y, radius);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                ctx.fillStyle = '#6b7280'; // text-gray-500
+                ctx.font = '500 14px Inter, sans-serif';
+                ctx.fillText(card.label, x + cardWidth / 2, y + 25);
+
+                const valueText = card.value === null ? '...' : card.value;
+                ctx.fillStyle = card.color;
+                ctx.font = 'bold 36px Inter, sans-serif';
+                ctx.fillText(valueText, x + cardWidth / 2, y + 65);
+            });
+        }
+
+        function listenForEventPresentCount() {
+            if (eventPresentUnsubscribe) eventPresentUnsubscribe();
+            const today = new Date().toISOString().split('T')[0];
+            const q = query(
+                collection(db, `artifacts/${appId}/public/data/attendance`),
+                where("eventId", "==", currentEventId),
+                where("date", "==", today)
+            );
+
+            eventPresentUnsubscribe = onSnapshot(q, (snapshot) => {
+                const presentStudents = new Set();
+                snapshot.forEach(doc => {
+                    if (doc.data().time_in) {
+                        presentStudents.add(doc.data().studentId);
+                    }
+                });
+                currentEventStats.presentToday = presentStudents.size;
+                drawEventStatsOnCanvas(currentEventStats);
+            });
+        }
         
+        window.addEventListener('resize', () => {
+            if(currentEventId && views.eventDetail.classList.contains('hidden') === false) {
+                 drawEventStatsOnCanvas(currentEventStats);
+            }
+        });
+
+
         // --- App Start ---
         showLoading();
         attemptInitialAuth();
