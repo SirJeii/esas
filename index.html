@@ -1301,38 +1301,41 @@
 
                 const studentDocs = snapshot.docs.sort((a, b) => a.data().name.localeCompare(b.data().name));
                 const totalStudents = studentDocs.length;
-                let generatedCount = 0;
-
                 showLoading(`Generating QR Codes (0/${totalStudents})`);
 
-                for (const doc of studentDocs) {
+                for (let i = 0; i < studentDocs.length; i++) {
+                    const doc = studentDocs[i];
                     const s = doc.data();
+                    
                     const card = document.createElement('div');
                     card.className = "qr-card-item text-center bg-white p-2 border rounded-lg flex flex-col items-center justify-center space-y-1 shadow-sm";
                     card.innerHTML = `<div class="mx-auto p-1 qr-container"></div><p class="font-semibold text-gray-800 text-sm break-all">${s.name}</p><p class="text-xs text-gray-500">ID: ${s.studentId}</p>`;
                     qrGrid.appendChild(card);
                     
-                    const qrPayload = { 
-                        studentId: s.studentId, 
-                        teacherId: currentUser.uid, 
-                        eventId: currentEventId, 
-                        classId: currentClassId,
-                        studentName: s.name,
-                        className: currentClassName
-                    };
-                    
-                    new QRCode(card.querySelector('.qr-container'), { 
-                        text: JSON.stringify(qrPayload), 
-                        width: 128, 
-                        height: 128 
+                    const qrContainer = card.querySelector('.qr-container');
+
+                    await new Promise((resolve) => {
+                        const qrPayload = {
+                            studentId: s.studentId,
+                            teacherId: currentUser.uid,
+                            eventId: currentEventId,
+                            classId: currentClassId,
+                            studentName: s.name,
+                            className: currentClassName
+                        };
+                        
+                        new QRCode(qrContainer, {
+                            text: JSON.stringify(qrPayload),
+                            width: 128,
+                            height: 128
+                        });
+
+                        requestAnimationFrame(() => {
+                            loadingMessage.textContent = `Generating QR Codes (${i + 1}/${totalStudents})`;
+                            resolve();
+                        });
                     });
-                    
-                    generatedCount++;
-                    loadingMessage.textContent = `Generating QR Codes (${generatedCount}/${totalStudents})`;
-
-                    await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI thread
                 }
-
                 showView('qrCode');
             } catch (e) {
                 console.error("QR Generation Error:", e);
@@ -1352,8 +1355,6 @@
 
                 const studentDocs = snapshot.docs.sort((a, b) => a.data().name.localeCompare(b.data().name));
                 const totalStudents = studentDocs.length;
-                let generatedCount = 0;
-
                 showLoading(`Generating ZIP file (0/${totalStudents})`);
 
                 const zip = new JSZip();
@@ -1362,59 +1363,90 @@
                 tempContainer.style.cssText = 'position:absolute; left:-9999px; opacity:0;';
                 document.body.appendChild(tempContainer);
 
-                for (const doc of studentDocs) {
+                for (let i = 0; i < studentDocs.length; i++) {
+                    const doc = studentDocs[i];
                     const student = doc.data();
-                    const qrDiv = document.createElement('div');
-                    tempContainer.appendChild(qrDiv);
-
-                    const qrPayload = { 
-                        studentId: student.studentId, 
-                        teacherId: currentUser.uid, 
-                        eventId: currentEventId, 
-                        classId: currentClassId,
-                        studentName: student.name,
-                        className: currentClassName
-                    };
-
-                    new QRCode(qrDiv, { text: JSON.stringify(qrPayload), width: 256, height: 256 });
                     
-                    await new Promise(r => setTimeout(r, 50)); 
-                    
-                    const img = qrDiv.querySelector('img');
-                    if (!img) continue;
+                    await new Promise((resolve, reject) => {
+                        const qrDiv = document.createElement('div');
+                        tempContainer.appendChild(qrDiv);
 
-                    const canvas = document.createElement('canvas');
-                    [canvas.width, canvas.height] = [300, 380];
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(0, 0, 300, 380);
-                    ctx.drawImage(img, (300-256)/2, 15, 256, 256);
-                    
-                    ctx.fillStyle = '#1f2937';
-                    ctx.textAlign = 'center';
-                    let fontSize = 24;
-                    const maxWidth = 280;
-                    ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+                        const qrPayload = { 
+                            studentId: student.studentId, 
+                            teacherId: currentUser.uid, 
+                            eventId: currentEventId, 
+                            classId: currentClassId,
+                            studentName: student.name,
+                            className: currentClassName
+                        };
 
-                    while (ctx.measureText(student.name).width > maxWidth && fontSize > 10) {
-                        fontSize--;
-                        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-                    }
-                    ctx.fillText(student.name, 150, 306);
+                        new QRCode(qrDiv, { text: JSON.stringify(qrPayload), width: 256, height: 256 });
+                        
+                        setTimeout(() => {
+                            try {
+                                const qrElement = qrDiv.querySelector('img') || qrDiv.querySelector('canvas');
+                                if (!qrElement) {
+                                    throw new Error(`QR element not found for ${student.name}`);
+                                }
 
-                    ctx.fillStyle = '#6b7280'; ctx.font = '18px Inter, sans-serif';
-                    ctx.fillText(`ID: ${student.studentId}`, 150, 336);
-                    folder.file(`${student.name.replace(/ /g, '_')}-${student.studentId}.png`, canvas.toDataURL('image/png').split(',')[1], { base64: true });
-                    tempContainer.removeChild(qrDiv);
-                    
-                    generatedCount++;
-                    loadingMessage.textContent = `Generating ZIP file (${generatedCount}/${totalStudents})`;
+                                const drawCard = (source) => {
+                                    const canvas = document.createElement('canvas');
+                                    [canvas.width, canvas.height] = [300, 380];
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.fillStyle = 'white';
+                                    ctx.fillRect(0, 0, 300, 380);
+                                    ctx.drawImage(source, (300-256)/2, 15, 256, 256);
+                                    
+                                    ctx.fillStyle = '#1f2937';
+                                    ctx.textAlign = 'center';
+                                    let fontSize = 24;
+                                    const maxWidth = 280;
+                                    ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+
+                                    while (ctx.measureText(student.name).width > maxWidth && fontSize > 10) {
+                                        fontSize--;
+                                        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+                                    }
+                                    ctx.fillText(student.name, 150, 306);
+
+                                    ctx.fillStyle = '#6b7280'; ctx.font = '18px Inter, sans-serif';
+                                    ctx.fillText(`ID: ${student.studentId}`, 150, 336);
+                                    return canvas;
+                                }
+
+                                if (qrElement.tagName === 'IMG') {
+                                    if (qrElement.complete) {
+                                        const finalCanvas = drawCard(qrElement);
+                                        folder.file(`${student.name.replace(/[ /]/g, '_')}-${student.studentId}.png`, finalCanvas.toDataURL('image/png').split(',')[1], { base64: true });
+                                        resolve();
+                                    } else {
+                                        qrElement.onload = () => {
+                                            const finalCanvas = drawCard(qrElement);
+                                            folder.file(`${student.name.replace(/[ /]/g, '_')}-${student.studentId}.png`, finalCanvas.toDataURL('image/png').split(',')[1], { base64: true });
+                                            resolve();
+                                        };
+                                        qrElement.onerror = () => reject(new Error('Image failed to load'));
+                                    }
+                                } else { // It's a canvas
+                                    const finalCanvas = drawCard(qrElement);
+                                    folder.file(`${student.name.replace(/[ /]/g, '_')}-${student.studentId}.png`, finalCanvas.toDataURL('image/png').split(',')[1], { base64: true });
+                                    resolve();
+                                }
+                            } catch (error) {
+                                reject(error);
+                            } finally {
+                                if (qrDiv && qrDiv.parentElement) {
+                                    tempContainer.removeChild(qrDiv);
+                                }
+                            }
+                        }, 100);
+                    });
+
+                    loadingMessage.textContent = `Generating ZIP file (${i + 1}/${totalStudents})`;
                 }
                 
                 document.body.removeChild(tempContainer);
-
                 loadingMessage.textContent = 'Compressing file...';
-                await new Promise(r => setTimeout(r, 10));
 
                 const content = await zip.generateAsync({ type: "blob" });
                 const link = document.createElement('a');
@@ -2051,5 +2083,4 @@
     </script>
 </body>
 </html>
-
 
