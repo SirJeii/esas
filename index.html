@@ -48,11 +48,12 @@
     <div id="app" class="min-h-screen">
 
         <!-- Loading Spinner -->
-        <div id="loading-spinner" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
+        <div id="loading-spinner" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex-col items-center justify-center z-50 hidden">
             <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
+            <p id="loading-message" class="text-lg font-semibold text-gray-700 mt-4"></p>
         </div>
         
         <!-- Header -->
@@ -421,6 +422,7 @@
 
         // --- DOM Elements & State ---
         const loadingSpinner = document.getElementById('loading-spinner');
+        const loadingMessage = document.getElementById('loading-message');
         const appHeader = document.getElementById('app-header');
         const views = {
             login: document.getElementById('login-view'),
@@ -471,8 +473,17 @@
             }, 3000);
         };
 
-        const showLoading = () => loadingSpinner.classList.remove('hidden');
-        const hideLoading = () => loadingSpinner.classList.add('hidden');
+        const showLoading = (message = '') => {
+            loadingMessage.textContent = message;
+            loadingMessage.style.display = message ? 'block' : 'none';
+            loadingSpinner.classList.remove('hidden');
+            loadingSpinner.classList.add('flex');
+        };
+        const hideLoading = () => {
+            loadingSpinner.classList.add('hidden');
+            loadingSpinner.classList.remove('flex');
+            loadingMessage.textContent = '';
+        };
         
         const openModal = (modalId) => {
             const modal = document.getElementById(modalId);
@@ -1279,56 +1290,83 @@
         });
 
         document.getElementById('generate-qr-codes').addEventListener('click', async () => {
-            showLoading();
             const qrGrid = document.getElementById('qr-code-grid');
             qrGrid.innerHTML = '';
-            const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
-            if (snapshot.empty) {
-                showToast("No students to generate QR codes for.", true);
+            try {
+                const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+                if (snapshot.empty) {
+                    showToast("No students to generate QR codes for.", true);
+                    return;
+                }
+
+                const studentDocs = snapshot.docs.sort((a, b) => a.data().name.localeCompare(b.data().name));
+                const totalStudents = studentDocs.length;
+                let generatedCount = 0;
+
+                showLoading(`Generating QR Codes (0/${totalStudents})`);
+
+                for (const doc of studentDocs) {
+                    const s = doc.data();
+                    const card = document.createElement('div');
+                    card.className = "qr-card-item text-center bg-white p-2 border rounded-lg flex flex-col items-center justify-center space-y-1 shadow-sm";
+                    card.innerHTML = `<div class="mx-auto p-1 qr-container"></div><p class="font-semibold text-gray-800 text-sm break-all">${s.name}</p><p class="text-xs text-gray-500">ID: ${s.studentId}</p>`;
+                    qrGrid.appendChild(card);
+                    
+                    const qrPayload = { 
+                        studentId: s.studentId, 
+                        teacherId: currentUser.uid, 
+                        eventId: currentEventId, 
+                        classId: currentClassId,
+                        studentName: s.name,
+                        className: currentClassName
+                    };
+                    
+                    new QRCode(card.querySelector('.qr-container'), { 
+                        text: JSON.stringify(qrPayload), 
+                        width: 128, 
+                        height: 128 
+                    });
+                    
+                    generatedCount++;
+                    loadingMessage.textContent = `Generating QR Codes (${generatedCount}/${totalStudents})`;
+
+                    await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI thread
+                }
+
+                showView('qrCode');
+            } catch (e) {
+                console.error("QR Generation Error:", e);
+                showToast("Failed to generate QR codes.", true);
+            } finally {
                 hideLoading();
-                return;
             }
-            snapshot.docs.sort((a,b) => a.data().name.localeCompare(b.data().name)).forEach(doc => {
-                const s = doc.data();
-                const card = document.createElement('div');
-                card.className = "qr-card-item text-center bg-white p-2 border rounded-lg flex flex-col items-center justify-center space-y-1 shadow-sm";
-                card.innerHTML = `<div class="mx-auto p-1 qr-container"></div><p class="font-semibold text-gray-800 text-sm break-all">${s.name}</p><p class="text-xs text-gray-500">ID: ${s.studentId}</p>`;
-                qrGrid.appendChild(card);
-                const qrPayload = { 
-                    studentId: s.studentId, 
-                    teacherId: currentUser.uid, 
-                    eventId: currentEventId, 
-                    classId: currentClassId,
-                    studentName: s.name,
-                    className: currentClassName
-                };
-                new QRCode(card.querySelector('.qr-container'), { 
-                    text: JSON.stringify(qrPayload), 
-                    width: 128, 
-                    height: 128 
-                });
-            });
-            showView('qrCode');
-            hideLoading();
         });
 
         document.getElementById('download-qr-zip').addEventListener('click', async () => {
-            showToast("Generating ZIP... Please wait.");
-            showLoading();
             try {
+                const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+                if (snapshot.empty) { 
+                    showToast("No students to generate codes for.", true); 
+                    return; 
+                }
+
+                const studentDocs = snapshot.docs.sort((a, b) => a.data().name.localeCompare(b.data().name));
+                const totalStudents = studentDocs.length;
+                let generatedCount = 0;
+
+                showLoading(`Generating ZIP file (0/${totalStudents})`);
+
                 const zip = new JSZip();
                 const folder = zip.folder("qr-code-cards");
-                const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
-                if (snapshot.empty) { showToast("No students to generate codes for.", true); return; }
-                
                 const tempContainer = document.createElement('div');
-                tempContainer.style.cssText = 'position:absolute; left:-9999px;';
+                tempContainer.style.cssText = 'position:absolute; left:-9999px; opacity:0;';
                 document.body.appendChild(tempContainer);
 
-                for (const doc of snapshot.docs) {
+                for (const doc of studentDocs) {
                     const student = doc.data();
                     const qrDiv = document.createElement('div');
                     tempContainer.appendChild(qrDiv);
+
                     const qrPayload = { 
                         studentId: student.studentId, 
                         teacherId: currentUser.uid, 
@@ -1337,11 +1375,9 @@
                         studentName: student.name,
                         className: currentClassName
                     };
-                    new QRCode(qrDiv, { 
-                        text: JSON.stringify(qrPayload), 
-                        width: 256, 
-                        height: 256 
-                    });
+
+                    new QRCode(qrDiv, { text: JSON.stringify(qrPayload), width: 256, height: 256 });
+                    
                     await new Promise(r => setTimeout(r, 50)); 
                     
                     const img = qrDiv.querySelector('img');
@@ -1370,15 +1406,25 @@
                     ctx.fillText(`ID: ${student.studentId}`, 150, 336);
                     folder.file(`${student.name.replace(/ /g, '_')}-${student.studentId}.png`, canvas.toDataURL('image/png').split(',')[1], { base64: true });
                     tempContainer.removeChild(qrDiv);
+                    
+                    generatedCount++;
+                    loadingMessage.textContent = `Generating ZIP file (${generatedCount}/${totalStudents})`;
                 }
                 
                 document.body.removeChild(tempContainer);
+
+                loadingMessage.textContent = 'Compressing file...';
+                await new Promise(r => setTimeout(r, 10));
+
                 const content = await zip.generateAsync({ type: "blob" });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(content);
                 link.download = `qr-cards-${currentClassName.replace(/ /g, '_')}.zip`;
                 link.click();
                 showToast("QR code cards ZIP downloaded!");
+            } catch(e) {
+                 console.error("ZIP Generation Error:", e);
+                 showToast("Failed to generate ZIP file.", true);
             } finally {
                 hideLoading();
             }
@@ -2005,4 +2051,5 @@
     </script>
 </body>
 </html>
+
 
