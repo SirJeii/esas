@@ -1294,7 +1294,19 @@
                 card.className = "qr-card-item text-center bg-white p-2 border rounded-lg flex flex-col items-center justify-center space-y-1 shadow-sm";
                 card.innerHTML = `<div class="mx-auto p-1 qr-container"></div><p class="font-semibold text-gray-800 text-sm break-all">${s.name}</p><p class="text-xs text-gray-500">ID: ${s.studentId}</p>`;
                 qrGrid.appendChild(card);
-                new QRCode(card.querySelector('.qr-container'), { text: JSON.stringify({ studentId: s.studentId, teacherId: currentUser.uid, eventId: currentEventId, classId: currentClassId }), width: 128, height: 128 });
+                const qrPayload = { 
+                    studentId: s.studentId, 
+                    teacherId: currentUser.uid, 
+                    eventId: currentEventId, 
+                    classId: currentClassId,
+                    studentName: s.name,
+                    className: currentClassName
+                };
+                new QRCode(card.querySelector('.qr-container'), { 
+                    text: JSON.stringify(qrPayload), 
+                    width: 128, 
+                    height: 128 
+                });
             });
             showView('qrCode');
             hideLoading();
@@ -1317,7 +1329,19 @@
                     const student = doc.data();
                     const qrDiv = document.createElement('div');
                     tempContainer.appendChild(qrDiv);
-                    new QRCode(qrDiv, { text: JSON.stringify({ studentId: student.studentId, teacherId: currentUser.uid, eventId: currentEventId, classId: currentClassId }), width: 256, height: 256 });
+                    const qrPayload = { 
+                        studentId: student.studentId, 
+                        teacherId: currentUser.uid, 
+                        eventId: currentEventId, 
+                        classId: currentClassId,
+                        studentName: student.name,
+                        className: currentClassName
+                    };
+                    new QRCode(qrDiv, { 
+                        text: JSON.stringify(qrPayload), 
+                        width: 256, 
+                        height: 256 
+                    });
                     await new Promise(r => setTimeout(r, 50)); 
                     
                     const img = qrDiv.querySelector('img');
@@ -1712,14 +1736,13 @@
 
             let q;
             if (isEventWide) {
-                // Query by event to see all scans for the current event today
                 q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
                     where("eventId", "==", currentEventId),
                     where("date", "==", today)
                 );
             } else {
-                // This mode is for a specific class view, which isn't currently used but kept for future-proofing.
-                q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
+                // This mode is not currently used but remains for future-proofing
+                 q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
                     where("classId", "==", currentClassId),
                     where("eventId", "==", currentEventId),
                     where("teacherId", "==", currentUser.uid),
@@ -1739,55 +1762,33 @@
                 }
 
                 const records = snapshot.docs.map(doc => doc.data()).sort((a, b) => {
-                    const timeA = (a.time_out || a.time_in).toMillis();
-                    const timeB = (b.time_out || b.time_in).toMillis();
+                    const timeA = (a.time_out || a.time_in)?.toMillis() || 0;
+                    const timeB = (b.time_out || b.time_in)?.toMillis() || 0;
                     return timeB - timeA;
                 });
-
-                const detailPromises = records.map(record => {
-                    const cacheKey = `${record.originalTeacherId || record.teacherId}-${record.originalClassId || record.classId}-${record.studentId}`;
-                    if (detailsCache.has(cacheKey)) {
-                        return Promise.resolve({ record, details: detailsCache.get(cacheKey) });
-                    } else {
-                        const studentOwnerId = record.originalTeacherId || record.teacherId; 
-                        const eventPathId = record.originalEventId || record.eventId;
-                        const classPathId = record.originalClassId || record.classId;
-                        
-                        const studentDocRef = doc(db, `artifacts/${appId}/users/${studentOwnerId}/events/${eventPathId}/classes/${classPathId}/students/${record.studentId}`);
-                        const classDocRef = doc(db, `artifacts/${appId}/users/${studentOwnerId}/events/${eventPathId}/classes/${classPathId}`);
-                        
-                        return Promise.all([getDoc(studentDocRef), getDoc(classDocRef)])
-                            .then(([studentDoc, classDoc]) => {
-                                const details = {
-                                    studentName: studentDoc.exists() ? studentDoc.data().name : 'Unknown Student',
-                                    className: classDoc.exists() ? classDoc.data().name : 'Unknown Class'
-                                };
-                                detailsCache.set(cacheKey, details);
-                                return { record, details };
-                            });
-                    }
-                });
-
-                const results = await Promise.all(detailPromises);
                 
                 logContainer.innerHTML = '';
-                results.forEach(({ record, details }) => {
-                    let status, statusColor, statusText, time;
+                records.forEach(record => {
+                    // Directly use the data stored in the attendance record. No more lookups!
+                    const studentName = record.studentName || `ID: ${record.studentId}`;
+                    const className = record.className || 'Unknown Class';
+
+                    let status, statusColor, time;
                     if (record.time_in && !record.time_out) {
                         status = 'IN'; statusColor = 'bg-green-100 text-green-800'; time = record.time_in;
                     } else if (record.time_in && record.time_out) {
                         status = 'OUT'; statusColor = 'bg-blue-100 text-blue-800'; time = record.time_out;
                     }
 
-                    statusText = time ? `at ${time.toDate().toLocaleTimeString()}` : '';
+                    const statusText = time ? `at ${time.toDate().toLocaleTimeString()}` : '';
 
                     const logItem = document.createElement('div');
                     logItem.className = 'py-3';
                     logItem.innerHTML = `
                         <div class="flex items-center justify-between">
                             <div>
-                               <p class="font-semibold text-gray-800">${details.studentName}</p>
-                               <p class="text-sm text-gray-500">Class: ${details.className}</p>
+                               <p class="font-semibold text-gray-800">${studentName}</p>
+                               <p class="text-sm text-gray-500">Class: ${className}</p>
                             </div>
                             <div class="text-right">
                                <span class="px-2 py-1 text-xs font-bold rounded-full ${statusColor}">${status}</span>
@@ -1810,88 +1811,45 @@
                 return; 
             }
 
-            // 1. Basic validation of QR code data
-            if (!qrData.studentId || !qrData.teacherId) {
-                showToast("Invalid QR Code format.", true);
+            // 1. Validate the QR code has the essential data
+            if (!qrData.studentId || !qrData.teacherId || !qrData.eventId || !qrData.classId || !qrData.studentName || !qrData.className) {
+                 // Fallback for old codes that are missing name/class
+                if (qrData.studentId && qrData.teacherId) {
+                     showToast("Outdated QR Code. Please regenerate for full compatibility.", true);
+                } else {
+                    showToast("Invalid QR Code format.", true);
+                }
                 return;
             }
 
             try {
-                // 2. Define student's original properties from QR code
-                const originalTeacherId = qrData.teacherId;
-                const originalEventId = qrData.eventId;   // Might be undefined for old codes
-                const originalClassId = qrData.classId;   // Might be undefined for old codes
-                const studentId = qrData.studentId;
+                // 2. Extract all data from the QR code and current state
+                const { studentId, studentName, className, teacherId: originalTeacherId, eventId: originalEventId, classId: originalClassId } = qrData;
                 const scanningTeacherId = currentUser.uid;
-                const eventIdToLogIn = currentEventId;    // Log against the *current* event.
-
-                let studentName = `(ID: ${studentId})`; // Default name if not found
-                let classIdToLog = originalClassId;     // Default to original class
-                let eventIdToLog = originalEventId;     // Default to original event
-
-                // 3. Find the student's name and *true* classId
-                if (originalEventId && originalClassId) {
-                    // New QR Code: We know exactly where to look.
-                    const studentDocRef = doc(db, `artifacts/${appId}/users/${originalTeacherId}/events/${originalEventId}/classes/${originalClassId}/students/${studentId}`);
-                    const studentDocSnap = await getDoc(studentDocRef);
-                    if (studentDocSnap.exists()) {
-                        studentName = studentDocSnap.data().name;
-                    } else {
-                        showToast(`Student ${studentId} not found in original class.`, true);
-                        return; // Student not found, reject scan.
-                    }
-                } else {
-                    // Old QR Code: We must search for the student in the *current* event.
-                    // This preserves old behavior while allowing new behavior.
-                    showToast("Scanning outdated QR code. Searching current event...", false);
-                    const classesRef = collection(db, `artifacts/${appId}/users/${originalTeacherId}/events/${eventIdToLogIn}/classes`);
-                    const classesSnapshot = await getDocs(classesRef);
-                    
-                    let foundStudentData = null;
-                    for (const classDoc of classesSnapshot.docs) {
-                        const studentDocRef = doc(db, `artifacts/${appId}/users/${originalTeacherId}/events/${eventIdToLogIn}/classes/${classDoc.id}/students/${studentId}`);
-                        const studentDocSnap = await getDoc(studentDocRef);
-                        if (studentDocSnap.exists()) {
-                            foundStudentData = studentDocSnap.data();
-                            classIdToLog = classDoc.id; // Found them in this class
-                            eventIdToLog = eventIdToLogIn; // Found them in this event
-                            break;
-                        }
-                    }
-
-                    if (foundStudentData) {
-                        studentName = foundStudentData.name;
-                    } else {
-                        showToast(`Student ${studentId} not found in *this* event.`, true);
-                        return; // Can't find them with old QR in this event.
-                    }
-                }
+                const eventIdToLogIn = currentEventId; // Log against the *current* event.
                 
-                // 4. We found the student. Now record attendance.
+                // 3. Prepare the attendance record
                 const today = new Date().toISOString().split('T')[0];
                 
-                // The attendance ID must be unique *for the event they are attending*.
-                // We'll base it on their *original* class ID (if we have it) or the *found* class ID.
-                const attendanceId = `${classIdToLog}-${studentId}-${eventIdToLogIn}-${today}`;
+                // The attendance ID must be unique for the event they are attending.
+                const attendanceId = `${originalClassId}-${studentId}-${eventIdToLogIn}-${today}`;
                 const attendanceRef = doc(db, `artifacts/${appId}/public/data/attendance/${attendanceId}`);
                 
                 const scanMode = document.getElementById('scan-mode').value;
                 const attendanceSnap = await getDoc(attendanceRef);
 
-                // This data logs who scanned, who the student belongs to, what event they are attending,
-                // what class they belong to, their ID, and the date.
                 const attendanceData = { 
-                    teacherId: scanningTeacherId,       // The teacher who is *scanning*
-                    originalTeacherId: originalTeacherId, // The teacher who *owns* the student record
-                    eventId: eventIdToLogIn,          // The event being *attended*
-                    classId: classIdToLog,          // The class the student *belongs* to (best guess)
-                    originalEventId: originalEventId,   // The student's original event (if known)
-                    originalClassId: originalClassId,   // The student's original class (if known)
+                    teacherId: scanningTeacherId,
+                    originalTeacherId: originalTeacherId,
+                    eventId: eventIdToLogIn,
+                    classId: originalClassId, // Log the student's original class
                     studentId: studentId,
-                    date: today
+                    date: today,
+                    studentName: studentName, // Store for easy display
+                    className: className      // Store for easy display
                 };
 
-                // 5. The rest of the logic (time_in, time_out, auto)
+                // 4. Handle Time In/Out logic
                 if (scanMode === 'time_in') {
                     await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null }, { merge: true });
                     showToast(`${studentName} forced IN.`);
@@ -1923,7 +1881,7 @@
 
             } catch (err) {
                 console.error("Error processing scan: ", err);
-                showToast("An error occurred processing the scan. Check permissions or QR data.", true);
+                showToast("An error occurred processing the scan.", true);
             }
         };
 
@@ -2047,3 +2005,4 @@
     </script>
 </body>
 </html>
+
