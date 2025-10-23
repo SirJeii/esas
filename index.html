@@ -1315,13 +1315,11 @@
                     const qrContainer = card.querySelector('.qr-container');
 
                     await new Promise((resolve) => {
+                        // Optimized payload - store only essential data to avoid QR code size limits
                         const qrPayload = {
-                            studentId: s.studentId,
-                            teacherId: currentUser.uid,
-                            eventId: currentEventId,
-                            classId: currentClassId,
-                            studentName: s.name,
-                            className: currentClassName
+                            sid: s.studentId,           // Student ID (essential)
+                            sn: s.name,                 // Student Name (for display)
+                            cn: currentClassName        // Class Name (for display)
                         };
                         
                         new QRCode(qrContainer, {
@@ -1892,15 +1890,19 @@
 
             // 1. Validate the QR code has the essential data (RELAXED VALIDATION)
             // Accept QR codes regardless of which teacher/event created them
-            if (!qrData.studentId) {
+            // Support both old format (studentId) and new format (sid)
+            const studentId = qrData.sid || qrData.studentId;
+            
+            if (!studentId) {
                 showToast("Invalid QR Code: Missing student ID.", true);
                 return;
             }
 
-            // Extract student info - use defaults if missing for backward compatibility
-            const studentId = qrData.studentId;
-            const studentName = qrData.studentName || `Student ${studentId}`;
-            const className = qrData.className || 'Unknown Class';
+            // Extract student info - support both old and new formats
+            // New format uses shortened keys: sid, sn, cn
+            // Old format uses: studentId, studentName, className, teacherId, eventId, classId
+            const studentName = qrData.sn || qrData.studentName || `Student ${studentId}`;
+            const className = qrData.cn || qrData.className || 'Unknown Class';
             const originalTeacherId = qrData.teacherId || 'unknown';
             const originalEventId = qrData.eventId || 'unknown';
             const originalClassId = qrData.classId || 'unknown';
