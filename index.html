@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
@@ -44,10 +44,8 @@
 </head>
 <body class="text-gray-800 bg-gray-100">
 
-    <!-- Main Application Container -->
     <div id="app" class="min-h-screen">
 
-        <!-- Loading Spinner -->
         <div id="loading-spinner" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex-col items-center justify-center z-50 hidden">
             <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -56,7 +54,6 @@
             <p id="loading-message" class="text-lg font-semibold text-gray-700 mt-4"></p>
         </div>
         
-        <!-- Header -->
         <header id="app-header" class="bg-white p-4 flex justify-between items-center hidden shadow-md sticky top-0 z-30">
             <div class="flex items-center space-x-3">
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
@@ -68,9 +65,7 @@
             </div>
         </header>
 
-        <!-- Dynamic Content Area -->
         <main id="main-content" class="p-4 md:p-8">
-            <!-- Login View -->
             <div id="login-view" class="hidden">
                 <div class="max-w-md mx-auto mt-10 bg-white p-8 rounded-xl shadow-lg">
                     <h2 id="auth-title" class="text-3xl font-bold text-center text-gray-800 mb-2">Teacher Login</h2>
@@ -115,11 +110,9 @@
                 </div>
             </div>
 
-            <!-- Dashboard View (Event List) -->
             <div id="dashboard-view" class="hidden">
                  <div id="dashboard-stats" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    <!-- Stats will be injected here -->
-                </div>
+                    </div>
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <h2 class="text-3xl font-bold text-gray-800">My Events</h2>
                     <button id="open-create-event-modal" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 flex items-center">
@@ -136,7 +129,6 @@
                 </div>
             </div>
 
-            <!-- Event Detail View (Class List) -->
             <div id="event-detail-view" class="hidden">
                 <button id="back-to-dashboard-from-event-detail" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -173,13 +165,10 @@
                         </div>
                     </div>
                     
-                    <!-- START: Canvas for Event Stats -->
                     <div class="mt-6 pt-6 border-t border-gray-200">
                          <canvas id="event-stats-canvas" class="w-full"></canvas>
                     </div>
-                    <!-- END: Canvas for Event Stats -->
-
-                </div>
+                    </div>
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <h3 class="text-2xl font-bold mb-4">Classes for this Event</h3>
                     <div id="class-tabs" class="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-4"></div>
@@ -189,7 +178,6 @@
                 </div>
             </div>
             
-            <!-- Student Management View -->
             <div id="student-management-view" class="hidden">
                 <button id="back-to-event-detail-from-manage" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -254,7 +242,6 @@
                 </div>
             </div>
             
-            <!-- QR Code View -->
             <div id="qr-code-view" class="hidden p-4 md:p-8">
                 <div class="no-print">
                     <button id="back-to-student-management-from-qr" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
@@ -279,7 +266,6 @@
                 </div>
             </div>
 
-            <!-- Attendance View -->
             <div id="attendance-view" class="hidden">
                 <button id="back-to-event-detail-from-scanner" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -289,7 +275,6 @@
                     <h2 id="attendance-view-title" class="text-2xl md:text-3xl font-bold text-center"></h2>
                 </div>
                 <div class="flex flex-col lg:flex-row gap-6">
-                    <!-- Left Column: Scanner -->
                     <div class="lg:w-1/2 bg-white p-4 md:p-6 rounded-xl shadow-lg text-center flex flex-col">
                         <h3 class="text-2xl font-bold mb-4">Scanner</h3>
                         <div class="mb-4">
@@ -302,7 +287,6 @@
                         </div>
                         <div id="qr-reader" class="w-full max-w-sm mx-auto border-4 border-dashed border-gray-300 rounded-lg overflow-hidden flex-grow min-h-[250px]"></div>
                     </div>
-                    <!-- Right Column: Student List / Activity Log -->
                     <div class="lg:w-1/2 bg-white p-4 md:p-6 rounded-xl shadow-lg">
                         <h3 class="text-2xl font-bold mb-4">Recent Activity</h3>
                         <div id="attendance-student-list" class="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto"></div>
@@ -313,7 +297,6 @@
         </main>
     </div>
 
-    <!-- Modals -->
     <div id="create-class-modal" class="fixed inset-0 z-40 items-center justify-center hidden modal-backdrop">
         <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md modal-content">
             <h3 class="text-2xl font-bold mb-6">Create New Class</h3>
@@ -391,7 +374,6 @@
     </div>
 
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -1289,13 +1271,31 @@
             });
         });
 
+        // --- [START] MODIFIED FUNCTION ---
         document.getElementById('generate-qr-codes').addEventListener('click', async () => {
             const qrGrid = document.getElementById('qr-code-grid');
-            qrGrid.innerHTML = '';
+            qrGrid.innerHTML = ''; // Clear previous
+            
+            showLoading("Fetching student roster...");
+            
             try {
                 const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+                
                 if (snapshot.empty) {
-                    showToast("No students to generate QR codes for.", true);
+                    // This is the "fix": Show a message in the grid instead of just a toast.
+                    qrGrid.innerHTML = `
+                        <div class="col-span-full text-center py-16 bg-white rounded-xl shadow-md">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-gray-400 mb-4">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="8.5" cy="7" r="4"></circle>
+                                <line x1="18" y1="8" x2="23" y2="13"></line>
+                                <line x1="23" y1="8" x2="18" y2="13"></line>
+                            </svg>
+                            <p class="text-xl font-semibold text-gray-700">No Students Found</p>
+                            <p class="text-gray-500 mt-2">You must import students (using the "Import CSV" button) before generating QR codes.</p>
+                        </div>
+                    `;
+                    showView('qrCode'); // Show the view so they can see the message
                     return;
                 }
 
@@ -1339,11 +1339,12 @@
                 showView('qrCode');
             } catch (e) {
                 console.error("QR Generation Error:", e);
-                showToast("Failed to generate QR codes.", true);
+                showToast("Failed to generate QR codes. Check console for errors.", true);
             } finally {
                 hideLoading();
             }
         });
+        // --- [END] MODIFIED FUNCTION ---
 
         document.getElementById('download-qr-zip').addEventListener('click', async () => {
             try {
@@ -1889,38 +1890,42 @@
                 return; 
             }
 
-            // 1. Validate the QR code has the essential data
-            if (!qrData.studentId || !qrData.teacherId || !qrData.eventId || !qrData.classId || !qrData.studentName || !qrData.className) {
-                 // Fallback for old codes that are missing name/class
-                if (qrData.studentId && qrData.teacherId) {
-                     showToast("Outdated QR Code. Please regenerate for full compatibility.", true);
-                } else {
-                    showToast("Invalid QR Code format.", true);
-                }
+            // 1. Validate the QR code has the essential data (RELAXED VALIDATION)
+            // Accept QR codes regardless of which teacher/event created them
+            if (!qrData.studentId) {
+                showToast("Invalid QR Code: Missing student ID.", true);
                 return;
             }
 
+            // Extract student info - use defaults if missing for backward compatibility
+            const studentId = qrData.studentId;
+            const studentName = qrData.studentName || `Student ${studentId}`;
+            const className = qrData.className || 'Unknown Class';
+            const originalTeacherId = qrData.teacherId || 'unknown';
+            const originalEventId = qrData.eventId || 'unknown';
+            const originalClassId = qrData.classId || 'unknown';
+
             try {
-                // 2. Extract all data from the QR code and current state
-                const { studentId, studentName, className, teacherId: originalTeacherId, eventId: originalEventId, classId: originalClassId } = qrData;
+                // 2. Current scanning context
                 const scanningTeacherId = currentUser.uid;
-                const eventIdToLogIn = currentEventId; // Log against the *current* event.
+                const eventIdToLogIn = currentEventId; // Log against the *current* event
                 
                 // 3. Prepare the attendance record
                 const today = new Date().toISOString().split('T')[0];
                 
-                // The attendance ID must be unique for the event they are attending.
-                const attendanceId = `${originalClassId}-${studentId}-${eventIdToLogIn}-${today}`;
+                // The attendance ID is unique per student per event per day
+                // This allows the same student QR code to work across different events
+                const attendanceId = `${studentId}-${eventIdToLogIn}-${today}`;
                 const attendanceRef = doc(db, `artifacts/${appId}/public/data/attendance/${attendanceId}`);
                 
                 const scanMode = document.getElementById('scan-mode').value;
                 const attendanceSnap = await getDoc(attendanceRef);
 
                 const attendanceData = { 
-                    teacherId: scanningTeacherId,
-                    originalTeacherId: originalTeacherId,
-                    eventId: eventIdToLogIn,
-                    classId: originalClassId, // Log the student's original class
+                    teacherId: scanningTeacherId, // Current teacher scanning
+                    originalTeacherId: originalTeacherId, // Original teacher who created QR
+                    eventId: eventIdToLogIn, // Current event
+                    classId: originalClassId, // Original class from QR code
                     studentId: studentId,
                     date: today,
                     studentName: studentName, // Store for easy display
@@ -1930,14 +1935,14 @@
                 // 4. Handle Time In/Out logic
                 if (scanMode === 'time_in') {
                     await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null }, { merge: true });
-                    showToast(`${studentName} forced IN.`);
+                    showToast(`✓ ${studentName} signed IN`);
                     return;
                 }
                 
                 if (scanMode === 'time_out') {
                     if (attendanceSnap.exists() && attendanceSnap.data().time_in) {
                         await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
-                        showToast(`${studentName} forced OUT.`);
+                        showToast(`✓ ${studentName} signed OUT`);
                     } else {
                         showToast(`${studentName} must sign IN first.`, true);
                     }
@@ -1947,14 +1952,14 @@
                 // Automatic Mode
                 if (!attendanceSnap.exists() || !attendanceSnap.data().time_in) {
                     await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
-                    showToast(`${studentName} signed IN.`);
+                    showToast(`✓ ${studentName} signed IN`);
                 } else if (attendanceSnap.data().time_in && !attendanceSnap.data().time_out) {
                     await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
-                    showToast(`${studentName} signed OUT.`);
+                    showToast(`✓ ${studentName} signed OUT`);
                 } else {
                     // Re-entry
                     await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
-                    showToast(`${studentName} re-entered. New sign IN recorded.`);
+                    showToast(`✓ ${studentName} re-entered (new sign IN)`);
                 }
 
             } catch (err) {
@@ -2083,4 +2088,3 @@
     </script>
 </body>
 </html>
-
