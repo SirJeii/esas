@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
@@ -44,16 +44,18 @@
 </head>
 <body class="text-gray-800 bg-gray-100">
 
+    <!-- Main Application Container -->
     <div id="app" class="min-h-screen">
 
-        <div id="loading-spinner" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex-col items-center justify-center z-50 hidden">
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
             <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p id="loading-message" class="text-lg font-semibold text-gray-700 mt-4"></p>
         </div>
         
+        <!-- Header -->
         <header id="app-header" class="bg-white p-4 flex justify-between items-center hidden shadow-md sticky top-0 z-30">
             <div class="flex items-center space-x-3">
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
@@ -65,7 +67,9 @@
             </div>
         </header>
 
+        <!-- Dynamic Content Area -->
         <main id="main-content" class="p-4 md:p-8">
+            <!-- Login View -->
             <div id="login-view" class="hidden">
                 <div class="max-w-md mx-auto mt-10 bg-white p-8 rounded-xl shadow-lg">
                     <h2 id="auth-title" class="text-3xl font-bold text-center text-gray-800 mb-2">Teacher Login</h2>
@@ -110,9 +114,11 @@
                 </div>
             </div>
 
+            <!-- Dashboard View (Event List) -->
             <div id="dashboard-view" class="hidden">
                  <div id="dashboard-stats" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    </div>
+                    <!-- Stats will be injected here -->
+                </div>
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <h2 class="text-3xl font-bold text-gray-800">My Events</h2>
                     <button id="open-create-event-modal" class="font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 flex items-center">
@@ -129,6 +135,7 @@
                 </div>
             </div>
 
+            <!-- Event Detail View (Class List) -->
             <div id="event-detail-view" class="hidden">
                 <button id="back-to-dashboard-from-event-detail" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -165,10 +172,13 @@
                         </div>
                     </div>
                     
+                    <!-- START: Canvas for Event Stats -->
                     <div class="mt-6 pt-6 border-t border-gray-200">
                          <canvas id="event-stats-canvas" class="w-full"></canvas>
                     </div>
-                    </div>
+                    <!-- END: Canvas for Event Stats -->
+
+                </div>
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <h3 class="text-2xl font-bold mb-4">Classes for this Event</h3>
                     <div id="class-tabs" class="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-4"></div>
@@ -178,6 +188,7 @@
                 </div>
             </div>
             
+            <!-- Student Management View -->
             <div id="student-management-view" class="hidden">
                 <button id="back-to-event-detail-from-manage" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -242,6 +253,7 @@
                 </div>
             </div>
             
+            <!-- QR Code View -->
             <div id="qr-code-view" class="hidden p-4 md:p-8">
                 <div class="no-print">
                     <button id="back-to-student-management-from-qr" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
@@ -266,6 +278,7 @@
                 </div>
             </div>
 
+            <!-- Attendance View -->
             <div id="attendance-view" class="hidden">
                 <button id="back-to-event-detail-from-scanner" class="mb-6 font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -275,6 +288,7 @@
                     <h2 id="attendance-view-title" class="text-2xl md:text-3xl font-bold text-center"></h2>
                 </div>
                 <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- Left Column: Scanner -->
                     <div class="lg:w-1/2 bg-white p-4 md:p-6 rounded-xl shadow-lg text-center flex flex-col">
                         <h3 class="text-2xl font-bold mb-4">Scanner</h3>
                         <div class="mb-4">
@@ -287,6 +301,7 @@
                         </div>
                         <div id="qr-reader" class="w-full max-w-sm mx-auto border-4 border-dashed border-gray-300 rounded-lg overflow-hidden flex-grow min-h-[250px]"></div>
                     </div>
+                    <!-- Right Column: Student List / Activity Log -->
                     <div class="lg:w-1/2 bg-white p-4 md:p-6 rounded-xl shadow-lg">
                         <h3 class="text-2xl font-bold mb-4">Recent Activity</h3>
                         <div id="attendance-student-list" class="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto"></div>
@@ -297,6 +312,7 @@
         </main>
     </div>
 
+    <!-- Modals -->
     <div id="create-class-modal" class="fixed inset-0 z-40 items-center justify-center hidden modal-backdrop">
         <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md modal-content">
             <h3 class="text-2xl font-bold mb-6">Create New Class</h3>
@@ -374,6 +390,7 @@
     </div>
 
 
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -404,7 +421,6 @@
 
         // --- DOM Elements & State ---
         const loadingSpinner = document.getElementById('loading-spinner');
-        const loadingMessage = document.getElementById('loading-message');
         const appHeader = document.getElementById('app-header');
         const views = {
             login: document.getElementById('login-view'),
@@ -455,17 +471,8 @@
             }, 3000);
         };
 
-        const showLoading = (message = '') => {
-            loadingMessage.textContent = message;
-            loadingMessage.style.display = message ? 'block' : 'none';
-            loadingSpinner.classList.remove('hidden');
-            loadingSpinner.classList.add('flex');
-        };
-        const hideLoading = () => {
-            loadingSpinner.classList.add('hidden');
-            loadingSpinner.classList.remove('flex');
-            loadingMessage.textContent = '';
-        };
+        const showLoading = () => loadingSpinner.classList.remove('hidden');
+        const hideLoading = () => loadingSpinner.classList.add('hidden');
         
         const openModal = (modalId) => {
             const modal = document.getElementById(modalId);
@@ -1271,185 +1278,83 @@
             });
         });
 
-        // --- [START] MODIFIED FUNCTION ---
         document.getElementById('generate-qr-codes').addEventListener('click', async () => {
+            showLoading();
             const qrGrid = document.getElementById('qr-code-grid');
-            qrGrid.innerHTML = ''; // Clear previous
-            
-            showLoading("Fetching student roster...");
-            
-            try {
-                const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
-                
-                if (snapshot.empty) {
-                    // This is the "fix": Show a message in the grid instead of just a toast.
-                    qrGrid.innerHTML = `
-                        <div class="col-span-full text-center py-16 bg-white rounded-xl shadow-md">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto text-gray-400 mb-4">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="8.5" cy="7" r="4"></circle>
-                                <line x1="18" y1="8" x2="23" y2="13"></line>
-                                <line x1="23" y1="8" x2="18" y2="13"></line>
-                            </svg>
-                            <p class="text-xl font-semibold text-gray-700">No Students Found</p>
-                            <p class="text-gray-500 mt-2">You must import students (using the "Import CSV" button) before generating QR codes.</p>
-                        </div>
-                    `;
-                    showView('qrCode'); // Show the view so they can see the message
-                    return;
-                }
-
-                const studentDocs = snapshot.docs.sort((a, b) => a.data().name.localeCompare(b.data().name));
-                const totalStudents = studentDocs.length;
-                showLoading(`Generating QR Codes (0/${totalStudents})`);
-
-                for (let i = 0; i < studentDocs.length; i++) {
-                    const doc = studentDocs[i];
-                    const s = doc.data();
-                    
-                    const card = document.createElement('div');
-                    card.className = "qr-card-item text-center bg-white p-2 border rounded-lg flex flex-col items-center justify-center space-y-1 shadow-sm";
-                    card.innerHTML = `<div class="mx-auto p-1 qr-container"></div><p class="font-semibold text-gray-800 text-sm break-all">${s.name}</p><p class="text-xs text-gray-500">ID: ${s.studentId}</p>`;
-                    qrGrid.appendChild(card);
-                    
-                    const qrContainer = card.querySelector('.qr-container');
-
-                    await new Promise((resolve) => {
-                        // Ultra-optimized: Store ONLY student ID as plain text (no JSON)
-                        new QRCode(qrContainer, {
-                            text: s.studentId,
-                            width: 128,
-                            height: 128
-                        });
-
-                        requestAnimationFrame(() => {
-                            loadingMessage.textContent = `Generating QR Codes (${i + 1}/${totalStudents})`;
-                            resolve();
-                        });
-                    });
-                }
-                showView('qrCode');
-            } catch (e) {
-                console.error("QR Generation Error:", e);
-                showToast("Failed to generate QR codes. Check console for errors.", true);
-            } finally {
+            qrGrid.innerHTML = '';
+            const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+            if (snapshot.empty) {
+                showToast("No students to generate QR codes for.", true);
                 hideLoading();
+                return;
             }
+            snapshot.docs.sort((a,b) => a.data().name.localeCompare(b.data().name)).forEach(doc => {
+                const s = doc.data();
+                const card = document.createElement('div');
+                card.className = "qr-card-item text-center bg-white p-2 border rounded-lg flex flex-col items-center justify-center space-y-1 shadow-sm";
+                card.innerHTML = `<div class="mx-auto p-1 qr-container"></div><p class="font-semibold text-gray-800 text-sm break-all">${s.name}</p><p class="text-xs text-gray-500">ID: ${s.studentId}</p>`;
+                qrGrid.appendChild(card);
+                new QRCode(card.querySelector('.qr-container'), { text: JSON.stringify({ studentId: s.studentId, teacherId: currentUser.uid }), width: 128, height: 128 });
+            });
+            showView('qrCode');
+            hideLoading();
         });
-        // --- [END] MODIFIED FUNCTION ---
 
         document.getElementById('download-qr-zip').addEventListener('click', async () => {
+            showToast("Generating ZIP... Please wait.");
+            showLoading();
             try {
-                const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
-                if (snapshot.empty) { 
-                    showToast("No students to generate codes for.", true); 
-                    return; 
-                }
-
-                const studentDocs = snapshot.docs.sort((a, b) => a.data().name.localeCompare(b.data().name));
-                const totalStudents = studentDocs.length;
-                showLoading(`Generating ZIP file (0/${totalStudents})`);
-
                 const zip = new JSZip();
                 const folder = zip.folder("qr-code-cards");
+                const snapshot = await getDocs(collection(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students`));
+                if (snapshot.empty) { showToast("No students to generate codes for.", true); return; }
+                
                 const tempContainer = document.createElement('div');
-                tempContainer.style.cssText = 'position:absolute; left:-9999px; opacity:0;';
+                tempContainer.style.cssText = 'position:absolute; left:-9999px;';
                 document.body.appendChild(tempContainer);
 
-                for (let i = 0; i < studentDocs.length; i++) {
-                    const doc = studentDocs[i];
+                for (const doc of snapshot.docs) {
                     const student = doc.data();
+                    const qrDiv = document.createElement('div');
+                    tempContainer.appendChild(qrDiv);
+                    new QRCode(qrDiv, { text: JSON.stringify({ studentId: student.studentId, teacherId: currentUser.uid }), width: 256, height: 256 });
+                    await new Promise(r => setTimeout(r, 50)); 
                     
-                    await new Promise((resolve, reject) => {
-                        const qrDiv = document.createElement('div');
-                        tempContainer.appendChild(qrDiv);
+                    const img = qrDiv.querySelector('img');
+                    if (!img) continue;
 
-                        const qrPayload = { 
-                            studentId: student.studentId, 
-                            teacherId: currentUser.uid, 
-                            eventId: currentEventId, 
-                            classId: currentClassId,
-                            studentName: student.name,
-                            className: currentClassName
-                        };
+                    const canvas = document.createElement('canvas');
+                    [canvas.width, canvas.height] = [300, 380];
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, 300, 380);
+                    ctx.drawImage(img, (300-256)/2, 15, 256, 256);
+                    
+                    ctx.fillStyle = '#1f2937';
+                    ctx.textAlign = 'center';
+                    let fontSize = 24;
+                    const maxWidth = 280;
+                    ctx.font = `bold ${fontSize}px Inter, sans-serif`;
 
-                        new QRCode(qrDiv, { text: JSON.stringify(qrPayload), width: 256, height: 256 });
-                        
-                        setTimeout(() => {
-                            try {
-                                const qrElement = qrDiv.querySelector('img') || qrDiv.querySelector('canvas');
-                                if (!qrElement) {
-                                    throw new Error(`QR element not found for ${student.name}`);
-                                }
+                    while (ctx.measureText(student.name).width > maxWidth && fontSize > 10) {
+                        fontSize--;
+                        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+                    }
+                    ctx.fillText(student.name, 150, 306);
 
-                                const drawCard = (source) => {
-                                    const canvas = document.createElement('canvas');
-                                    [canvas.width, canvas.height] = [300, 380];
-                                    const ctx = canvas.getContext('2d');
-                                    ctx.fillStyle = 'white';
-                                    ctx.fillRect(0, 0, 300, 380);
-                                    ctx.drawImage(source, (300-256)/2, 15, 256, 256);
-                                    
-                                    ctx.fillStyle = '#1f2937';
-                                    ctx.textAlign = 'center';
-                                    let fontSize = 24;
-                                    const maxWidth = 280;
-                                    ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-
-                                    while (ctx.measureText(student.name).width > maxWidth && fontSize > 10) {
-                                        fontSize--;
-                                        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-                                    }
-                                    ctx.fillText(student.name, 150, 306);
-
-                                    ctx.fillStyle = '#6b7280'; ctx.font = '18px Inter, sans-serif';
-                                    ctx.fillText(`ID: ${student.studentId}`, 150, 336);
-                                    return canvas;
-                                }
-
-                                if (qrElement.tagName === 'IMG') {
-                                    if (qrElement.complete) {
-                                        const finalCanvas = drawCard(qrElement);
-                                        folder.file(`${student.name.replace(/[ /]/g, '_')}-${student.studentId}.png`, finalCanvas.toDataURL('image/png').split(',')[1], { base64: true });
-                                        resolve();
-                                    } else {
-                                        qrElement.onload = () => {
-                                            const finalCanvas = drawCard(qrElement);
-                                            folder.file(`${student.name.replace(/[ /]/g, '_')}-${student.studentId}.png`, finalCanvas.toDataURL('image/png').split(',')[1], { base64: true });
-                                            resolve();
-                                        };
-                                        qrElement.onerror = () => reject(new Error('Image failed to load'));
-                                    }
-                                } else { // It's a canvas
-                                    const finalCanvas = drawCard(qrElement);
-                                    folder.file(`${student.name.replace(/[ /]/g, '_')}-${student.studentId}.png`, finalCanvas.toDataURL('image/png').split(',')[1], { base64: true });
-                                    resolve();
-                                }
-                            } catch (error) {
-                                reject(error);
-                            } finally {
-                                if (qrDiv && qrDiv.parentElement) {
-                                    tempContainer.removeChild(qrDiv);
-                                }
-                            }
-                        }, 100);
-                    });
-
-                    loadingMessage.textContent = `Generating ZIP file (${i + 1}/${totalStudents})`;
+                    ctx.fillStyle = '#6b7280'; ctx.font = '18px Inter, sans-serif';
+                    ctx.fillText(`ID: ${student.studentId}`, 150, 336);
+                    folder.file(`${student.name.replace(/ /g, '_')}-${student.studentId}.png`, canvas.toDataURL('image/png').split(',')[1], { base64: true });
+                    tempContainer.removeChild(qrDiv);
                 }
                 
                 document.body.removeChild(tempContainer);
-                loadingMessage.textContent = 'Compressing file...';
-
                 const content = await zip.generateAsync({ type: "blob" });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(content);
                 link.download = `qr-cards-${currentClassName.replace(/ /g, '_')}.zip`;
                 link.click();
                 showToast("QR code cards ZIP downloaded!");
-            } catch(e) {
-                 console.error("ZIP Generation Error:", e);
-                 showToast("Failed to generate ZIP file.", true);
             } finally {
                 hideLoading();
             }
@@ -1807,13 +1712,14 @@
 
             let q;
             if (isEventWide) {
+                // Query by event to see all scans for the current event today
                 q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
                     where("eventId", "==", currentEventId),
                     where("date", "==", today)
                 );
             } else {
-                // This mode is not currently used but remains for future-proofing
-                 q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
+                // This mode is for a specific class view, which isn't currently used but kept for future-proofing.
+                q = query(collection(db, `artifacts/${appId}/public/data/attendance`),
                     where("classId", "==", currentClassId),
                     where("eventId", "==", currentEventId),
                     where("teacherId", "==", currentUser.uid),
@@ -1826,40 +1732,59 @@
 
                 if (snapshot.empty) {
                     logContainer.innerHTML = `<div class="text-center py-8 text-gray-500">
-                                                <p>No scans for this event yet today.</p>
-                                                <p class="text-sm mt-2">Scan a student's QR code to begin.</p>
-                                            </div>`;
+                                            <p>No scans for this event yet today.</p>
+                                            <p class="text-sm mt-2">Scan a student's QR code to begin.</p>
+                                        </div>`;
                     return;
                 }
 
                 const records = snapshot.docs.map(doc => doc.data()).sort((a, b) => {
-                    const timeA = (a.time_out || a.time_in)?.toMillis() || 0;
-                    const timeB = (b.time_out || b.time_in)?.toMillis() || 0;
+                    const timeA = (a.time_out || a.time_in).toMillis();
+                    const timeB = (b.time_out || b.time_in).toMillis();
                     return timeB - timeA;
                 });
+
+                const detailPromises = records.map(record => {
+                    const cacheKey = `${record.originalTeacherId || record.teacherId}-${record.classId}-${record.studentId}`;
+                    if (detailsCache.has(cacheKey)) {
+                        return Promise.resolve({ record, details: detailsCache.get(cacheKey) });
+                    } else {
+                        const studentOwnerId = record.originalTeacherId || record.teacherId; 
+                        const studentDocRef = doc(db, `artifacts/${appId}/users/${studentOwnerId}/events/${record.eventId}/classes/${record.classId}/students/${record.studentId}`);
+                        const classDocRef = doc(db, `artifacts/${appId}/users/${studentOwnerId}/events/${record.eventId}/classes/${record.classId}`);
+                        
+                        return Promise.all([getDoc(studentDocRef), getDoc(classDocRef)])
+                            .then(([studentDoc, classDoc]) => {
+                                const details = {
+                                    studentName: studentDoc.exists() ? studentDoc.data().name : 'Unknown Student',
+                                    className: classDoc.exists() ? classDoc.data().name : 'Unknown Class'
+                                };
+                                detailsCache.set(cacheKey, details);
+                                return { record, details };
+                            });
+                    }
+                });
+
+                const results = await Promise.all(detailPromises);
                 
                 logContainer.innerHTML = '';
-                records.forEach(record => {
-                    // Directly use the data stored in the attendance record. No more lookups!
-                    const studentName = record.studentName || `ID: ${record.studentId}`;
-                    const className = record.className || 'Unknown Class';
-
-                    let status, statusColor, time;
+                results.forEach(({ record, details }) => {
+                    let status, statusColor, statusText, time;
                     if (record.time_in && !record.time_out) {
                         status = 'IN'; statusColor = 'bg-green-100 text-green-800'; time = record.time_in;
                     } else if (record.time_in && record.time_out) {
                         status = 'OUT'; statusColor = 'bg-blue-100 text-blue-800'; time = record.time_out;
                     }
 
-                    const statusText = time ? `at ${time.toDate().toLocaleTimeString()}` : '';
+                    statusText = time ? `at ${time.toDate().toLocaleTimeString()}` : '';
 
                     const logItem = document.createElement('div');
                     logItem.className = 'py-3';
                     logItem.innerHTML = `
                         <div class="flex items-center justify-between">
                             <div>
-                               <p class="font-semibold text-gray-800">${studentName}</p>
-                               <p class="text-sm text-gray-500">Class: ${className}</p>
+                               <p class="font-semibold text-gray-800">${details.studentName}</p>
+                               <p class="text-sm text-gray-500">Class: ${details.className}</p>
                             </div>
                             <div class="text-right">
                                <span class="px-2 py-1 text-xs font-bold rounded-full ${statusColor}">${status}</span>
@@ -1871,114 +1796,104 @@
             });
         }
         
-const onScanSuccess = async (decodedText) => {
-            if (Date.now() - lastScanTime < 3000) return; // Debounce scans
-            lastScanTime = Date.now();
-            
-            let studentId, studentName, className, classId, teacherId, eventId;
-            let qrData = null;
+        const onScanSuccess = async (decodedText) => {
+            if (Date.now() - lastScanTime < 3000) return; // Debounce scans
+            lastScanTime = Date.now();
+            let qrData;
+            try { 
+                qrData = JSON.parse(decodedText); 
+            } catch { 
+                showToast("Invalid QR Code.", true); 
+                return; 
+            }
 
-            try {
-                qrData = JSON.parse(decodedText);
-                // JSON format (from ZIP download)
-                studentId = qrData.studentId;
-                studentName = qrData.studentName;
-                className = qrData.className;
-                classId = qrData.classId;
-                teacherId = qrData.teacherId;
-                eventId = qrData.eventId;
-            } catch {
-                // Plain text format (from on-screen "Gen. QR Codes")
-                studentId = decodedText.trim();
-            }
-            
-            if (!studentId) {
-                showToast("Invalid QR Code.", true);
-                return;
-            }
+            // 1. Basic validation of QR code data
+            if (!qrData.studentId || !qrData.teacherId) {
+                showToast("Invalid QR Code format.", true);
+                return;
+            }
 
-            // --- [START FIX] ---
-            // If it was a plain-text QR, we must find the student's details
-            if (!qrData) {
-                // This QR code is from the *current* class being managed
-                const studentDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students/${studentId}`);
-                const studentSnap = await getDoc(studentDocRef);
-                
-                if (!studentSnap.exists()) {
-                    // Student isn't in this class. Fallback.
-                    studentName = `Student ${studentId}`;
-                    className = 'Unknown Class';
-                    classId = 'unknown';
-                    teacherId = 'unknown';
-                } else {
-                    // Student found! Use their correct details.
-                    const studentData = studentSnap.data();
-                    studentName = studentData.name;
-                    className = currentClassName; // From global state
-                    classId = currentClassId;     // From global state
-                    teacherId = currentUser.uid;  // From global state
-                }
-            }
-            // --- [END FIX] ---
+            try {
+                // 2. Find the student under their ORIGINAL teacher's data for the current event.
+                const classesRef = collection(db, `artifacts/${appId}/users/${qrData.teacherId}/events/${currentEventId}/classes`);
+                const classesSnapshot = await getDocs(classesRef);
+                
+                let foundStudent = null;
+                
+                for (const classDoc of classesSnapshot.docs) {
+                    const studentDocRef = doc(db, `artifacts/${appId}/users/${qrData.teacherId}/events/${currentEventId}/classes/${classDoc.id}/students/${qrData.studentId}`);
+                    const studentDocSnap = await getDoc(studentDocRef);
 
-            try {
-                const scanningTeacherId = currentUser.uid;
-                const eventIdToLogIn = currentEventId; // Log against the *current* event
-                const today = new Date().toISOString().split('T')[0];
-                const attendanceId = `${studentId}-${eventIdToLogIn}-${today}`;
-                const attendanceRef = doc(db, `artifacts/${appId}/public/data/attendance/${attendanceId}`);
-                
-                const scanMode = document.getElementById('scan-mode').value;
-                const attendanceSnap = await getDoc(attendanceRef);
+                    if (studentDocSnap.exists()) {
+                        foundStudent = {
+                            ...studentDocSnap.data(),
+                            classId: classDoc.id,
+                        };
+                        break;
+                    }
+                }
 
-                const attendanceData = { 
-                    teacherId: scanningTeacherId, 
-                    originalTeacherId: teacherId, // Fixed
-                    eventId: eventIdToLogIn, 
-                    classId: classId, // Fixed
-                    studentId: studentId,
-                    date: today,
-          _           studentName: studentName, 
-                    className: className    
-        _       };
+                if (!foundStudent) {
+                    showToast(`Student ID ${qrData.studentId} not found in this event.`, true);
+                    return;
+                }
+                
+                // 3. We found the student. Now record attendance under the SCANNING teacher (currentUser).
+                const { studentId, name: studentName, classId } = foundStudent;
+                const eventId = currentEventId;
+                const originalTeacherId = qrData.teacherId;
+                
+                const today = new Date().toISOString().split('T')[0];
+                const attendanceId = `${classId}-${studentId}-${eventId}-${today}`;
+                const attendanceRef = doc(db, `artifacts/${appId}/public/data/attendance/${attendanceId}`);
+                
+                const scanMode = document.getElementById('scan-mode').value;
+                const attendanceSnap = await getDoc(attendanceRef);
+                const scanningTeacherId = currentUser.uid;
 
-                // ... [Rest of the function is OK] ...
-                // 4. Handle Time In/Out logic
-                if (scanMode === 'time_in') {
-                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null }, { merge: true });
-                    showToast(`✓ ${studentName} signed IN`);
-                    return;
-                }
-                
-                if (scanMode === 'time_out') {
-                    if (attendanceSnap.exists() && attendanceSnap.data().time_in) {
-            _             await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
-                        showToast(`✓ ${studentName} signed OUT`);
-                    } else {
-                        showToast(`${studentName} must sign IN first.`, true);
-                    }
-                    return;
-                }
+                const attendanceData = { 
+                    teacherId: scanningTeacherId, 
+                    originalTeacherId: originalTeacherId,
+                    eventId, 
+                    classId, 
+                    studentId, 
+                    date: today 
+                };
 
-                // Automatic Mode
-                if (!attendanceSnap.exists() || !attendanceSnap.data().time_in) {
-                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
-                    showToast(`✓ ${studentName} signed IN`);
-                } else if (attendanceSnap.data().time_in && !attendanceSnap.data().time_out) {
-                    await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
-                    showToast(`✓ ${studentName} signed OUT`);
-                } else {
-                    // Re-entry
-                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
-                    showToast(`✓ ${studentName} re-entered (new sign IN)`);
-                }
+                if (scanMode === 'time_in') {
+                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null }, { merge: true });
+                    showToast(`${studentName} forced IN.`);
+                    return;
+                }
+                
+                if (scanMode === 'time_out') {
+                    if (attendanceSnap.exists() && attendanceSnap.data().time_in) {
+                        await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
+                        showToast(`${studentName} forced OUT.`);
+                    } else {
+                        showToast(`${studentName} must sign IN first.`, true);
+                    }
+                    return;
+                }
 
-            } catch (err) {
-                console.error("Error processing scan: ", err);
-                showToast("An error occurred processing the scan.", true);
-            }
-        };
+                // Automatic Mode
+                if (!attendanceSnap.exists() || !attendanceSnap.data().time_in) {
+                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
+                    showToast(`${studentName} signed IN.`);
+                } else if (attendanceSnap.data().time_in && !attendanceSnap.data().time_out) {
+                    await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
+                    showToast(`${studentName} signed OUT.`);
+                } else {
+                    // This allows a student who has already signed in and out to re-enter the event.
+                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
+                    showToast(`${studentName} re-entered. New sign IN recorded.`);
+                }
 
+            } catch (err) {
+                console.error("Error processing scan: ", err);
+                showToast("An error occurred. The student may not be in this event or there's a permission issue.", true);
+            }
+        };
 
         function startScanner() {
             if (isScanning) return;
