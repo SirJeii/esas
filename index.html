@@ -1871,98 +1871,113 @@
             });
         }
         
-        const onScanSuccess = async (decodedText) => {
-            if (Date.now() - lastScanTime < 3000) return; // Debounce scans
-            lastScanTime = Date.now();
-            
-            // Support multiple QR formats: plain text (new), JSON with short keys, or JSON with long keys (old)
-            let studentId, studentName = null, className = null;
-            
-            try {
-                const qrData = JSON.parse(decodedText);
-                // JSON format (old codes)
-                studentId = qrData.sid || qrData.studentId;
-                studentName = qrData.sn || qrData.studentName;
-                className = qrData.cn || qrData.className;
-            } catch {
-                // Plain text format (new codes) - just student ID
-                studentId = decodedText.trim();
-            }
-            
-            if (!studentId) {
-                showToast("Invalid QR Code.", true);
-                return;
-            }
-            
-            // Use placeholders if not provided in QR code
-            if (!studentName) studentName = `Student ${studentId}`;
-            if (!className) className = 'Unknown Class';
-            const originalTeacherId = 'unknown';
-            const originalEventId = 'unknown';
-            const originalClassId = 'unknown';
+const onScanSuccess = async (decodedText) => {
+            if (Date.now() - lastScanTime < 3000) return; // Debounce scans
+            lastScanTime = Date.now();
+            
+            let studentId, studentName, className, classId, teacherId, eventId;
+            let qrData = null;
 
-            try {
-                // 2. Current scanning context
-                const scanningTeacherId = currentUser.uid;
-                const eventIdToLogIn = currentEventId; // Log against the *current* event
-                
-                // 3. Prepare the attendance record
-                const today = new Date().toISOString().split('T')[0];
-                
-                // The attendance ID is unique per student per event per day
-                // This allows the same student QR code to work across different events
-                const attendanceId = `${studentId}-${eventIdToLogIn}-${today}`;
-                const attendanceRef = doc(db, `artifacts/${appId}/public/data/attendance/${attendanceId}`);
-                
-                const scanMode = document.getElementById('scan-mode').value;
-                const attendanceSnap = await getDoc(attendanceRef);
+            try {
+                qrData = JSON.parse(decodedText);
+                // JSON format (from ZIP download)
+                studentId = qrData.studentId;
+                studentName = qrData.studentName;
+                className = qrData.className;
+                classId = qrData.classId;
+                teacherId = qrData.teacherId;
+                eventId = qrData.eventId;
+            } catch {
+                // Plain text format (from on-screen "Gen. QR Codes")
+                studentId = decodedText.trim();
+            }
+            
+            if (!studentId) {
+                showToast("Invalid QR Code.", true);
+                return;
+            }
 
-                const attendanceData = { 
-                    teacherId: scanningTeacherId, // Current teacher scanning
-                    originalTeacherId: originalTeacherId, // Original teacher who created QR
-                    eventId: eventIdToLogIn, // Current event
-                    classId: originalClassId, // Original class from QR code
-                    studentId: studentId,
-                    date: today,
-                    studentName: studentName, // Store for easy display
-                    className: className      // Store for easy display
-                };
+            // --- [START FIX] ---
+            // If it was a plain-text QR, we must find the student's details
+            if (!qrData) {
+                // This QR code is from the *current* class being managed
+                const studentDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/events/${currentEventId}/classes/${currentClassId}/students/${studentId}`);
+                const studentSnap = await getDoc(studentDocRef);
+                
+                if (!studentSnap.exists()) {
+                    // Student isn't in this class. Fallback.
+                    studentName = `Student ${studentId}`;
+                    className = 'Unknown Class';
+                    classId = 'unknown';
+                    teacherId = 'unknown';
+                } else {
+                    // Student found! Use their correct details.
+                    const studentData = studentSnap.data();
+                    studentName = studentData.name;
+                    className = currentClassName; // From global state
+                    classId = currentClassId;     // From global state
+                    teacherId = currentUser.uid;  // From global state
+                }
+            }
+            // --- [END FIX] ---
 
-                // 4. Handle Time In/Out logic
-                if (scanMode === 'time_in') {
-                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null }, { merge: true });
-                    showToast(`✓ ${studentName} signed IN`);
-                    return;
-                }
-                
-                if (scanMode === 'time_out') {
-                    if (attendanceSnap.exists() && attendanceSnap.data().time_in) {
-                        await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
-                        showToast(`✓ ${studentName} signed OUT`);
-                    } else {
-                        showToast(`${studentName} must sign IN first.`, true);
-                    }
-                    return;
-                }
+            try {
+                const scanningTeacherId = currentUser.uid;
+                const eventIdToLogIn = currentEventId; // Log against the *current* event
+                const today = new Date().toISOString().split('T')[0];
+                const attendanceId = `${studentId}-${eventIdToLogIn}-${today}`;
+                const attendanceRef = doc(db, `artifacts/${appId}/public/data/attendance/${attendanceId}`);
+                
+                const scanMode = document.getElementById('scan-mode').value;
+                const attendanceSnap = await getDoc(attendanceRef);
 
-                // Automatic Mode
-                if (!attendanceSnap.exists() || !attendanceSnap.data().time_in) {
-                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
-                    showToast(`✓ ${studentName} signed IN`);
-                } else if (attendanceSnap.data().time_in && !attendanceSnap.data().time_out) {
-                    await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
-                    showToast(`✓ ${studentName} signed OUT`);
-                } else {
-                    // Re-entry
-                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
-                    showToast(`✓ ${studentName} re-entered (new sign IN)`);
-                }
+                const attendanceData = { 
+                    teacherId: scanningTeacherId, 
+                    originalTeacherId: teacherId, // Fixed
+                    eventId: eventIdToLogIn, 
+                    classId: classId, // Fixed
+                    studentId: studentId,
+                    date: today,
+          _           studentName: studentName, 
+                    className: className    
+        _       };
 
-            } catch (err) {
-                console.error("Error processing scan: ", err);
-                showToast("An error occurred processing the scan.", true);
-            }
-        };
+                // ... [Rest of the function is OK] ...
+                // 4. Handle Time In/Out logic
+                if (scanMode === 'time_in') {
+                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null }, { merge: true });
+                    showToast(`✓ ${studentName} signed IN`);
+                    return;
+                }
+                
+                if (scanMode === 'time_out') {
+                    if (attendanceSnap.exists() && attendanceSnap.data().time_in) {
+            _             await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
+                        showToast(`✓ ${studentName} signed OUT`);
+                    } else {
+                        showToast(`${studentName} must sign IN first.`, true);
+                    }
+                    return;
+                }
+
+                // Automatic Mode
+                if (!attendanceSnap.exists() || !attendanceSnap.data().time_in) {
+                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
+                    showToast(`✓ ${studentName} signed IN`);
+                } else if (attendanceSnap.data().time_in && !attendanceSnap.data().time_out) {
+                    await updateDoc(attendanceRef, { time_out: serverTimestamp(), teacherId: scanningTeacherId });
+                    showToast(`✓ ${studentName} signed OUT`);
+                } else {
+                    // Re-entry
+                    await setDoc(attendanceRef, { ...attendanceData, time_in: serverTimestamp(), time_out: null });
+                    showToast(`✓ ${studentName} re-entered (new sign IN)`);
+                }
+
+            } catch (err) {
+                console.error("Error processing scan: ", err);
+                showToast("An error occurred processing the scan.", true);
+            }
+        };
 
 
         function startScanner() {
