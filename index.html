@@ -1315,15 +1315,9 @@
                     const qrContainer = card.querySelector('.qr-container');
 
                     await new Promise((resolve) => {
-                        // Optimized payload - store only essential data to avoid QR code size limits
-                        const qrPayload = {
-                            sid: s.studentId,           // Student ID (essential)
-                            sn: s.name,                 // Student Name (for display)
-                            cn: currentClassName        // Class Name (for display)
-                        };
-                        
+                        // Ultra-optimized: Store ONLY student ID as plain text (no JSON)
                         new QRCode(qrContainer, {
-                            text: JSON.stringify(qrPayload),
+                            text: s.studentId,
                             width: 128,
                             height: 128
                         });
@@ -1880,32 +1874,32 @@
         const onScanSuccess = async (decodedText) => {
             if (Date.now() - lastScanTime < 3000) return; // Debounce scans
             lastScanTime = Date.now();
-            let qrData;
-            try { 
-                qrData = JSON.parse(decodedText); 
-            } catch { 
-                showToast("Invalid QR Code.", true); 
-                return; 
+            
+            // Support multiple QR formats: plain text (new), JSON with short keys, or JSON with long keys (old)
+            let studentId, studentName = null, className = null;
+            
+            try {
+                const qrData = JSON.parse(decodedText);
+                // JSON format (old codes)
+                studentId = qrData.sid || qrData.studentId;
+                studentName = qrData.sn || qrData.studentName;
+                className = qrData.cn || qrData.className;
+            } catch {
+                // Plain text format (new codes) - just student ID
+                studentId = decodedText.trim();
             }
-
-            // 1. Validate the QR code has the essential data (RELAXED VALIDATION)
-            // Accept QR codes regardless of which teacher/event created them
-            // Support both old format (studentId) and new format (sid)
-            const studentId = qrData.sid || qrData.studentId;
             
             if (!studentId) {
-                showToast("Invalid QR Code: Missing student ID.", true);
+                showToast("Invalid QR Code.", true);
                 return;
             }
-
-            // Extract student info - support both old and new formats
-            // New format uses shortened keys: sid, sn, cn
-            // Old format uses: studentId, studentName, className, teacherId, eventId, classId
-            const studentName = qrData.sn || qrData.studentName || `Student ${studentId}`;
-            const className = qrData.cn || qrData.className || 'Unknown Class';
-            const originalTeacherId = qrData.teacherId || 'unknown';
-            const originalEventId = qrData.eventId || 'unknown';
-            const originalClassId = qrData.classId || 'unknown';
+            
+            // Use placeholders if not provided in QR code
+            if (!studentName) studentName = `Student ${studentId}`;
+            if (!className) className = 'Unknown Class';
+            const originalTeacherId = 'unknown';
+            const originalEventId = 'unknown';
+            const originalClassId = 'unknown';
 
             try {
                 // 2. Current scanning context
